@@ -196,9 +196,9 @@ def generate_geometry():
 
     # Form bounding box
     left = openmc.XPlane(x0=0, name='left')
-    right = openmc.XPlane(x0=3/2*pitch, name='right')
+    right = openmc.XPlane(x0=3.0/2.0*pitch, name='right')
     bottom = openmc.YPlane(y0=0, name='bottom')
-    top = openmc.YPlane(y0=3/2*pitch, name='top')
+    top = openmc.YPlane(y0=3.0/2.0*pitch, name='top')
 
     left.boundary_type = 'reflective'
     right.boundary_type = 'reflective'

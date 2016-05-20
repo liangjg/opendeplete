@@ -5,7 +5,7 @@ import numpy as np
 import pickle
 import openmc_wrapper
 import example_geometry
-import integrator
+#import integrator
 
 # Load geometry from example
 geometry, volume = example_geometry.generate_geometry()
@@ -22,9 +22,9 @@ dt = np.repeat([dt1], N)
 settings = openmc_wrapper.Settings()
 
 settings.cross_sections = \
-    "/home/cjosey/code/openmc/data/nndc/cross_sections.xml"
-settings.chain_file = "/home/cjosey/code/opendeplete/chains/chain_simple.xml"
-settings.openmc_call = "/home/cjosey/code/openmc/bin/openmc"
+    "/Users/mellis/ClassifiedMC/data/nndc/cross_sections.xml"
+settings.chain_file = "/Users/mellis/opendeplete/chains/chain_simple.xml"
+settings.openmc_call = "/Users/mellis/ClassifiedMC_Depletion/src/build/bin/openmc"
 # An example for mpiexec:
 # settings.openmc_call = ["mpiexec", "/home/cjosey/code/openmc/bin/openmc"]
 settings.particles = 1000
@@ -34,9 +34,16 @@ settings.inactive = 40
 settings.power = 2.337e15  # MeV/second cm from CASMO
 settings.dt_vec = dt
 settings.output_dir = 'test'
+settings.fet_order = 20
 
 op = function.Operator()
 op.initialize(geometry, volume, materials, settings)
+op.geometry.generate_materials_xml()
+op.geometry.generate_settings_xml(settings)
+op.geometry.generate_tally_xml(settings)
 
+
+'''
 # Perform simulation using the MCNPX/MCNP6 algorithm
 integrator.MCNPX(op)
+'''

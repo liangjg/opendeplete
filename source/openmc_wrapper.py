@@ -13,7 +13,6 @@ from collections import OrderedDict
 import depletion_chain
 import numpy as np
 
-
 class Settings:
     """ The Settings class.
 
@@ -43,6 +42,8 @@ class Settings:
         Array of time steps to take.
     output_dir : str
         Path to output directory to save results.
+    fet_order : This is the order of the 1D zernike expansion to be used
+                for reaction rates
     """
 
     def __init__(self):
@@ -58,6 +59,7 @@ class Settings:
         self.power = None
         self.dt_vec = None
         self.output_dir = None
+        self.fet_order = None
 
 
 class Materials:
@@ -343,10 +345,10 @@ class Geometry:
         settings_file.batches = batches
         settings_file.inactive = inactive
         settings_file.particles = particles
-        settings_file.source = Source(space=Box([-0.0, -0.0, -1],
-                                                [3/2*pitch, 3/2*pitch, 1]))
+        settings_file.source = Source(space=Box([-0.0, -0.0, 0],
+                                                [3.0/2.0*pitch, 3.0/2.0*pitch, 0]))
         settings_file.entropy_lower_left = [-0.0, -0.0, -1.e50]
-        settings_file.entropy_upper_right = [3/2*pitch, 3/2*pitch, 1.e50]
+        settings_file.entropy_upper_right = [3.0/2.0*pitch, 3.0/2.0*pitch, 1.e50]
         settings_file.entropy_dimension = [10, 10, 1]
 
         # Set seed
@@ -356,7 +358,10 @@ class Geometry:
 
         settings_file.export_to_xml()
 
-    def generate_tally_xml(self):
+    def generate_tally_xml(self, settings):
+
+        import copy
+
         """ Generates tally.xml.
 
         Using information from self.depletion_chain as well as the nuclides
@@ -386,12 +391,29 @@ class Geometry:
             if key in chain.nuclide_dict:
                 tally_dep.add_nuclide(key)
 
-        for reaction in chain.react_to_ind:
-            tally_dep.add_score(reaction)
-
-        tallies_file.add_tally(tally_dep)
-
         tally_dep.add_filter(cell_filter_dep)
+
+        if (settings.fet_order == None):
+            for reaction in chain.react_to_ind:
+                tally_dep.add_score(reaction)
+            tallies_file.add_tally(tally_dep)
+        else:
+            # Add the geomtric norm to tally if we are doing FETs
+            # TODO we need geometry constants in another PYTHON file for easy use
+            tally_dep.add_geom_norm(0.412275)
+            tally_dep.estimator = 'analog'
+            # The current implementation does not allow multiple score pins for FETs
+            # Therefore, we need a unique tally for each reaction
+            fet_tallies = []
+            for reaction in chain.react_to_ind:
+                fet_tallies.append(copy.deepcopy(tally_dep))
+                fet_score_name = 'micro-' + reaction + '-oz' + str(settings.fet_order)
+                fet_tallies[-1].id = tally_ind
+                fet_tallies[-1].add_score(fet_score_name)
+                tally_ind += 1
+
+            [tallies_file.add_tally(t) for t in fet_tallies]
+
         tallies_file.export_to_xml()
 
     def depletion_matrix_list(self):

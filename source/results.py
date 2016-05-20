@@ -5,7 +5,7 @@ Contains results generation and saving capabilities.
 
 import reaction_rates
 import concentrations
-import lzma
+import pylzma
 import pickle
 
 
