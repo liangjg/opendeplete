@@ -5,7 +5,7 @@ import numpy as np
 import pickle
 import openmc_wrapper
 import example_geometry
-#import integrator
+import integrator
 
 # Load geometry from example
 geometry, volume = example_geometry.generate_geometry()
@@ -38,12 +38,12 @@ settings.fet_order = 20
 
 op = function.Operator()
 op.initialize(geometry, volume, materials, settings)
-op.geometry.generate_materials_xml()
-op.geometry.generate_settings_xml(settings)
-op.geometry.generate_tally_xml(settings)
+#op.geometry.generate_materials_xml()
+#op.geometry.generate_settings_xml(settings)
+#op.geometry.generate_tally_xml(settings)
 
 
-'''
+
 # Perform simulation using the MCNPX/MCNP6 algorithm
 integrator.MCNPX(op)
-'''
+

@@ -33,7 +33,8 @@ def predictor(op):
     dir_home = os.getcwd()
 
     # Move to folder
-    os.makedirs(op.settings.output_dir, exist_ok=True)
+    if not os.path.exists(op.settings.output_dir):
+        os.makedirs(op.settings.output_dir)
 
     # Change directory
     os.chdir(op.settings.output_dir)
@@ -81,7 +82,8 @@ def MCNPX(op):
     dir_home = os.getcwd()
 
     # Move to folder
-    os.makedirs(op.settings.output_dir, exist_ok=True)
+    if not os.path.exists(op.settings.output_dir):
+        os.makedirs(op.settings.output_dir)
 
     # Change directory
     os.chdir(op.settings.output_dir)
@@ -142,7 +144,8 @@ def QD(op):
     dir_home = os.getcwd()
 
     # Move to folder
-    os.makedirs(op.settings.output_dir, exist_ok=True)
+    if not os.path.exists(op.settings.output_dir):
+        os.makedirs(op.settings.output_dir, exist_ok=True)
 
     # Change directory
     os.chdir(op.settings.output_dir)
