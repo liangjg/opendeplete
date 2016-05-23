@@ -343,9 +343,9 @@ class Geometry:
         settings_file.batches = batches
         settings_file.inactive = inactive
         settings_file.particles = particles
-        settings_file.source = Source(space=Box([-0.0, -0.0, -1],
+        settings_file.source = Source(space=Box([-3/2*pitch, -3/2*pitch, -1],
                                                 [3/2*pitch, 3/2*pitch, 1]))
-        settings_file.entropy_lower_left = [-0.0, -0.0, -1.e50]
+        settings_file.entropy_lower_left = [-3/2*pitch, -3/2*pitch, -1.e50]
         settings_file.entropy_upper_right = [3/2*pitch, 3/2*pitch, 1.e50]
         settings_file.entropy_dimension = [10, 10, 1]
 

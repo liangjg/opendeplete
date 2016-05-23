@@ -9,6 +9,7 @@ import function
 import openmc
 import openmc_wrapper
 import numpy as np
+import math
 from collections import OrderedDict
 
 
@@ -176,7 +177,8 @@ def generate_geometry():
     r_fuel = 0.412275
     r_gap = 0.418987
     r_clad = 0.476121
-    n_rings = 5
+    n_rings = 20
+    n_radial = 32
 
     # Calculate all the volumes of interest ahead of time
     v_fuel = math.pi * r_fuel**2
@@ -195,9 +197,9 @@ def generate_geometry():
         r_rings[i] = math.sqrt(1.0/(math.pi) * v_ring * (i+1))
 
     # Form bounding box
-    left = openmc.XPlane(x0=0, name='left')
+    left = openmc.XPlane(x0=-3/2*pitch, name='left')
     right = openmc.XPlane(x0=3/2*pitch, name='right')
-    bottom = openmc.YPlane(y0=0, name='bottom')
+    bottom = openmc.YPlane(y0=-3/2*pitch, name='bottom')
     top = openmc.YPlane(y0=3/2*pitch, name='top')
 
     left.boundary_type = 'reflective'
@@ -207,76 +209,90 @@ def generate_geometry():
 
     # ----------------------------------------------------------------------
     # Fill pin 1 (the one with gadolinium)
+    gd_fuel_p = []
+    theta = 0
+    for i in range(n_radial):
+        a = math.cos(theta)
+        b = math.sin(theta)
+        plane = openmc.Plane(A = a, B = b)
+        gd_fuel_p.append(plane)
+        theta += 2 * math.pi / n_radial
+    
     gd_fuel_r = [openmc.ZCylinder(x0=0, y0=0, R=r_rings[i])
                  for i in range(n_rings)]
     gd_clad_ir = openmc.ZCylinder(x0=0, y0=0, R=r_gap)
     gd_clad_or = openmc.ZCylinder(x0=0, y0=0, R=r_clad)
 
-    # Fuel rings
-    gd_fuel_cell = [openmc.Cell(name='fuel_gd') for i in range(n_rings)]
+    gd_fuel_cell = []
 
-    gd_fuel_cell[0].region = -gd_fuel_r[0] & +left & +bottom
-    volume[gd_fuel_cell[0].id] = v_ring / 4.0
+    for i in range(n_rings):
+        for j in range(n_radial):
+            cell = openmc.Cell(name='fuel_gd')
 
-    for i in range(n_rings-1):
-        gd_fuel_cell[i+1].region = +gd_fuel_r[i] & -gd_fuel_r[i+1] &\
-                                   +left & +bottom
-        volume[gd_fuel_cell[i+1].id] = v_ring / 4.0
+            if i == 0:
+                cell.region = -gd_fuel_r[0] & +gd_fuel_p[j-1] & -gd_fuel_p[j]
+                volume[cell.id] = v_ring / n_radial
+            else:
+                cell.region = +gd_fuel_r[i-1] & -gd_fuel_r[i] & +gd_fuel_p[j-1] & -gd_fuel_p[j]
+                volume[cell.id] = v_ring / n_radial
+            gd_fuel_cell.append(cell)
 
     # Gap
     gd_fuel_gap = openmc.Cell(name='gap')
-    gd_fuel_gap.region = +gd_fuel_r[n_rings-1] & -gd_clad_ir & +left & +bottom
-    volume[gd_fuel_gap.id] = v_gap / 4.0
+    gd_fuel_gap.region = +gd_fuel_r[n_rings-1] & -gd_clad_ir
+    volume[gd_fuel_gap.id] = v_gap
 
     # Clad
     gd_fuel_clad = openmc.Cell(name='clad')
-    gd_fuel_clad.region = +gd_clad_ir & -gd_clad_or & +left & +bottom
-    volume[gd_fuel_clad.id] = v_clad / 4.0
+    gd_fuel_clad.region = +gd_clad_ir & -gd_clad_or
+    volume[gd_fuel_clad.id] = v_clad
 
     # ----------------------------------------------------------------------
     # Fill pin 2, 3 and 4 (without gadolinium)
-    coords = [[pitch, 0], [0, pitch], [pitch, pitch]]
+    coords = [[pitch, 0], [pitch, pitch], [0, pitch], [-pitch, pitch], [-pitch, 0], [-pitch, -pitch], [0, -pitch], [pitch, -pitch]]
 
-    fuel_s = [openmc.ZCylinder(x0=x[0], y0=x[1], R=r_fuel) for x in coords]
-    clad_ir_s = [openmc.ZCylinder(x0=x[0], y0=x[1], R=r_gap) for x in coords]
-    clad_or_s = [openmc.ZCylinder(x0=x[0], y0=x[1], R=r_clad) for x in coords]
+    fuel_s = []
+    clad_ir_s = []
+    clad_or_s = []
 
-    fuel_cell = [openmc.Cell(name='fuel') for x in coords]
-    clad_cell = [openmc.Cell(name='clad') for x in coords]
-    gap_cell = [openmc.Cell(name='gap') for x in coords]
+    fuel_cell = []
+    clad_cell = []
+    gap_cell = []
 
-    fuel_cell[0].region = -fuel_s[0] & +bottom
-    fuel_cell[1].region = -fuel_s[1] & +left
-    fuel_cell[2].region = -fuel_s[2]
+    ind = 0
 
-    gap_cell[0].region = +fuel_s[0] & -clad_ir_s[0] & +bottom
-    gap_cell[1].region = +fuel_s[1] & -clad_ir_s[1] & +left
-    gap_cell[2].region = +fuel_s[2] & -clad_ir_s[2]
+    for x in coords:
+        fuel_s.append(openmc.ZCylinder(x0=x[0], y0=x[1], R=r_fuel))
+        clad_ir_s.append(openmc.ZCylinder(x0=x[0], y0=x[1], R=r_gap))
+        clad_or_s.append(openmc.ZCylinder(x0=x[0], y0=x[1], R=r_clad))
 
-    clad_cell[0].region = +clad_ir_s[0] & -clad_or_s[0] & +bottom
-    clad_cell[1].region = +clad_ir_s[1] & -clad_or_s[1] & +left
-    clad_cell[2].region = +clad_ir_s[2] & -clad_or_s[2]
+        fs = openmc.Cell(name='fuel')
+        cs = openmc.Cell(name='clad')
+        gs = openmc.Cell(name='gap')
 
-    volume[fuel_cell[0].id] = v_fuel / 2.0
-    volume[fuel_cell[1].id] = v_fuel / 2.0
-    volume[fuel_cell[2].id] = v_fuel
+        fs.region = -fuel_s[ind]
+        gs.region = +fuel_s[ind] & -clad_ir_s[ind]
+        cs.region = +clad_ir_s[ind] & -clad_or_s[ind]
 
-    volume[gap_cell[0].id] = v_gap / 2.0
-    volume[gap_cell[1].id] = v_gap / 2.0
-    volume[gap_cell[2].id] = v_gap
-
-    volume[clad_cell[0].id] = v_clad / 2.0
-    volume[clad_cell[1].id] = v_clad / 2.0
-    volume[clad_cell[2].id] = v_clad
+        volume[fs.id] = v_fuel
+        volume[cs.id] = v_clad
+        volume[gs.id] = v_gap
+        
+        fuel_cell.append(fs)
+        clad_cell.append(cs)
+        gap_cell.append(gs)
+        ind += 1
 
     # ----------------------------------------------------------------------
     # Fill coolant
 
     cool_cell = openmc.Cell(name='cool')
     cool_cell.region = +clad_or_s[0] & +clad_or_s[1] & +clad_or_s[2] &\
+                       +clad_or_s[3] & +clad_or_s[4] & +clad_or_s[5] &\
+                       +clad_or_s[6] & +clad_or_s[7] &\
                        +gd_clad_or & +left & -right & +bottom & -top
-    volume[cool_cell.id] = (3/2 * pitch)**2 - 2.25 * v_fuel - \
-        2.25 * v_gap - 2.25 * v_clad
+    volume[cool_cell.id] = (3 * pitch)**2 - 9 * v_fuel - \
+        9 * v_gap - 9 * v_clad
 
     # ----------------------------------------------------------------------
     # Finalize geometry
