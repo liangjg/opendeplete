@@ -142,7 +142,7 @@ def generate_initial_number_density():
     # Set up burnable materials
     burn = OrderedDict()
     burn['fuel_gd'] = True
-    burn['fuel'] = True
+    burn['fuel'] = False
     burn['gap'] = False
     burn['clad'] = False
     burn['cool'] = False
@@ -177,8 +177,7 @@ def generate_geometry():
     r_fuel = 0.412275
     r_gap = 0.418987
     r_clad = 0.476121
-    n_rings = 20
-    n_radial = 32
+    n_rings = 1
 
     # Calculate all the volumes of interest ahead of time
     v_fuel = math.pi * r_fuel**2
@@ -209,33 +208,15 @@ def generate_geometry():
 
     # ----------------------------------------------------------------------
     # Fill pin 1 (the one with gadolinium)
-    gd_fuel_p = []
-    theta = 0
-    for i in range(n_radial):
-        a = math.cos(theta)
-        b = math.sin(theta)
-        plane = openmc.Plane(A = a, B = b)
-        gd_fuel_p.append(plane)
-        theta += 2 * math.pi / n_radial
     
     gd_fuel_r = [openmc.ZCylinder(x0=0, y0=0, R=r_rings[i])
                  for i in range(n_rings)]
     gd_clad_ir = openmc.ZCylinder(x0=0, y0=0, R=r_gap)
     gd_clad_or = openmc.ZCylinder(x0=0, y0=0, R=r_clad)
 
-    gd_fuel_cell = []
-
-    for i in range(n_rings):
-        for j in range(n_radial):
-            cell = openmc.Cell(name='fuel_gd')
-
-            if i == 0:
-                cell.region = -gd_fuel_r[0] & +gd_fuel_p[j-1] & -gd_fuel_p[j]
-                volume[cell.id] = v_ring / n_radial
-            else:
-                cell.region = +gd_fuel_r[i-1] & -gd_fuel_r[i] & +gd_fuel_p[j-1] & -gd_fuel_p[j]
-                volume[cell.id] = v_ring / n_radial
-            gd_fuel_cell.append(cell)
+    gd_fuel_cell = openmc.Cell(name='fuel_gd')
+    gd_fuel_cell.region = -gd_fuel_r[0]
+    volume[gd_fuel_cell.id] = v_ring
 
     # Gap
     gd_fuel_gap = openmc.Cell(name='gap')
@@ -299,7 +280,7 @@ def generate_geometry():
     root = openmc.Universe(universe_id=0, name='root universe')
 
     root.add_cells([cool_cell] + clad_cell + gap_cell + fuel_cell +
-                   gd_fuel_cell + [gd_fuel_clad] + [gd_fuel_gap])
+                   [gd_fuel_cell] + [gd_fuel_clad] + [gd_fuel_gap])
 
     geometry = openmc.Geometry()
     geometry.root_universe = root
