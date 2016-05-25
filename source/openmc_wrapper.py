@@ -683,7 +683,15 @@ class Geometry:
                             / self.total_number[cell][nuc]
 
                     # Calculate power if fission
-                    if tally_type == "fission" or tally_type == 'micro-fission-zn':
+                    if tally_type == "fission":
+                        power = value * nuclide.fission_power
+                        if cell not in self.power:
+                            self.power[cell] = power
+                        else:
+                            self.power[cell] += power
+                    elif tally_type == 'micro-fission-zn':
+                        value = df_nuclide[df_nuclide["score"] ==
+                                           tally_type]["mean"].values[0] * 1e-24 * self.number_density[cell][nuc]
                         power = value * nuclide.fission_power
                         if cell not in self.power:
                             self.power[cell] = power

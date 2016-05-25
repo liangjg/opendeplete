@@ -2208,3 +2208,4 @@ def form_b_matrix(p, pp, rate):
 
     print(p, pp, rate, v1, np.dot(v1, rate)/c_matrix[pp])
     return np.dot(v1, rate)/c_matrix[pp]
+
