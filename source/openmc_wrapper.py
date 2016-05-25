@@ -623,6 +623,8 @@ class Geometry:
         # ---------------------------------------------------------------------
         # Unpack depletion list
 
+        mp = zernike.num_poly(settings.fet_order)
+
         # Zero out reaction_rates
         self.reaction_rates[:, :, :, :] = 0.0
 
@@ -663,7 +665,7 @@ class Geometry:
                         print('fet_Tally_type = ' + fet_tally_type)
                         print(df_nuclide[df_nuclide["score"] ==
                                            fet_tally_type]["mean"].values)
-                        for f in range(settings.fet_order + 1):
+                        for f in range(mp):
                             # Note that the micro rates are in barn x cm
                             # so we need to put in cm^3
                             # TODO incorporate the higher order moments

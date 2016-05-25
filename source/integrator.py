@@ -14,6 +14,7 @@ import scipy.linalg as ssla
 import numpy as np
 import time
 import copy
+from matplotlib import pyplot as plt
 import math
 import concurrent.futures
 
@@ -50,6 +51,8 @@ def predictor(op):
         # Evaluate function at vec to get mat
         mat, eigvl, r1, seed = op.eval(vec)
         print(mat[0])
+        plt.spy(mat[0])
+        plt.show()
         print(ssla.eig(mat[0].toarray()))
         write_results(op, eigvl, [vec], [r1], [1], [seed], time, ind)
 
