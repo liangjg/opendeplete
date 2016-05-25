@@ -5,6 +5,7 @@ loaded from an .xml file and all the nuclides are linked together.
 """
 
 from collections import OrderedDict
+import zernike
 
 
 class DepletionChain:
@@ -217,7 +218,9 @@ class DepletionChain:
         import scipy.sparse as sp
         import math
 
-        matrix = sp.dok_matrix((self.n_nuclides, self.n_nuclides))
+        np = rates.n_poly
+
+        matrix = sp.dok_matrix((self.n_nuclides * np, self.n_nuclides * np))
 
         for i in range(self.n_nuclides):
             nuclide = self.nuclides[i]
@@ -227,48 +230,54 @@ class DepletionChain:
                 # Loss
                 decay_constant = math.log(2)/nuclide.half_life
 
-                matrix[i, i] -= decay_constant
+                for p in range(np):
 
-                # Gain
-                for j in range(nuclide.n_decay_paths):
-                    target_nuclide = nuclide.decay_target[j]
+                    matrix[i*np + p, i*np + p] -= decay_constant
 
-                    # Allow for total annihilation for debug purposes
-                    if target_nuclide != 'Nothing':
-                        k = self.nuclide_dict[target_nuclide]
+                    # Gain
+                    for j in range(nuclide.n_decay_paths):
+                        target_nuclide = nuclide.decay_target[j]
 
-                        matrix[k, i] += \
-                            nuclide.branching_ratio[j] * decay_constant
+                        # Allow for total annihilation for debug purposes
+                        if target_nuclide != 'Nothing':
+                            k = self.nuclide_dict[target_nuclide]
+
+                            matrix[k*np + p, i*np + p] += \
+                                nuclide.branching_ratio[j] * decay_constant
 
             if nuclide.name in rates.nuc_to_ind:
                 # Extract all reactions for this nuclide in this cell
-                nuc_rates = rates[cell_id, nuclide.name, :]
+                nuc_rates = rates[cell_id, nuclide.name, :, :]
+
                 for j in range(nuclide.n_reaction_paths):
                     path = nuclide.reaction_type[j]
                     # Extract reaction index, and then final reaction rate
                     r_id = rates.react_to_ind[path]
-                    path_rate = nuc_rates[r_id]
+                    path_rate = nuc_rates[r_id, :]
 
                     # Loss term
-                    matrix[i, i] -= path_rate
+                    for p in range(np):
+                        for pp in range(np):
+                            weight_rate = zernike.form_b_matrix(p, pp, path_rate)
+                            matrix[i*np+pp, i*np+p] -= weight_rate
 
-                    # Gain term
-                    target_nuclide = nuclide.reaction_target[j]
+                            # Gain term
+                            target_nuclide = nuclide.reaction_target[j]
 
-                    # Allow for total annihilation for debug purposes
-                    if target_nuclide != 'Nothing':
-                        if path != 'fission':
-                            k = self.nuclide_dict[target_nuclide]
-                            matrix[k, i] += path_rate
-                        else:
-                            m = self.precursor_dict[nuclide.name]
+                            # Allow for total annihilation for debug purposes
+                            if target_nuclide != 'Nothing':
+                                if path != 'fission':
+                                    k = self.nuclide_dict[target_nuclide]
+                                    matrix[k*np+pp, i*np+p] += weight_rate
+                                else:
+                                    m = self.precursor_dict[nuclide.name]
 
-                            for k in range(self.yields.n_fis_prod):
-                                l = self.nuclide_dict[self.yields.name[k]]
-                                # Todo energy
-                                matrix[l, i] += \
-                                    self.yields.fis_yield_data[k, 0, m] * \
-                                    path_rate
+                                    for k in range(self.yields.n_fis_prod):
+                                        l = self.nuclide_dict[self.yields.name[k]]
+                                        # Todo energy
+                                        matrix[l*np+pp, i*np+p] += \
+                                            self.yields.fis_yield_data[k, 0, m] * \
+                                            weight_rate
 
         matrix = matrix.tocsr()
         return matrix

@@ -12,6 +12,7 @@ from results import *
 from collections import OrderedDict
 import depletion_chain
 import numpy as np
+import zernike
 
 
 class Settings:
@@ -152,6 +153,7 @@ class Geometry:
         self.mat_name = None
         self.burn_cell_to_ind = None
         self.burn_nuc_to_ind = None
+        self.fet_order = None
 
     def initialize(self, settings):
         """ Initializes the geometry.
@@ -177,6 +179,8 @@ class Geometry:
         self.mat_name = OrderedDict()
         self.burn_cell_to_ind = OrderedDict()
         self.burn_list = []
+
+        self.fet_order = settings.fet_order
 
         cell_ind = 0
 
@@ -207,7 +211,8 @@ class Geometry:
         self.reaction_rates = \
             reaction_rates.ReactionRates(self.burn_cell_to_ind,
                                          self.burn_nuc_to_ind,
-                                         self.chain.react_to_ind)
+                                         self.chain.react_to_ind,
+                                         self.fet_order)
 
         # Finally, calculate total number densities
         self.total_number = OrderedDict()
@@ -443,8 +448,10 @@ class Geometry:
             cell_ind = self.burn_cell_to_ind[cell]
             input_list.append((self.chain, self.reaction_rates, cell_ind))
 
-        with concurrent.futures.ProcessPoolExecutor() as executor:
-            matrices = executor.map(depletion_chain.matrix_wrapper, input_list)
+        matrices = [depletion_chain.matrix_wrapper(wrap) for wrap in input_list]
+
+        #~ with concurrent.futures.ProcessPoolExecutor() as executor:
+            #~ matrices = executor.map(depletion_chain.matrix_wrapper, input_list)
 
         return list(matrices)
 
@@ -505,6 +512,8 @@ class Geometry:
 
         total_density = []
 
+        mp = zernike.num_poly(self.fet_order)
+
         cell_i = 0
 
         for cell in self.burn_list:
@@ -515,10 +524,15 @@ class Geometry:
             # in the order of chain
             for i in range(len(self.chain.nuclides)):
                 if self.chain.nuclides[i].name in self.total_number[cell]:
-                    total_density[cell_i].append(
-                        self.total_number[cell][self.chain.nuclides[i].name])
+                    for p in range(mp):
+                        if p == 0:
+                            total_density[cell_i].append(
+                                self.total_number[cell][self.chain.nuclides[i].name])
+                        else:
+                            total_density[cell_i].append(0.0)
                 else:
-                    total_density[cell_i].append(0.0)
+                    for p in range(mp):
+                        total_density[cell_i].append(0.0)
             # Convert to np.array
             total_density[cell_i] = np.array(total_density[cell_i])
             cell_i += 1
@@ -544,17 +558,19 @@ class Geometry:
 
         cell_i = 0
 
+        mp = zernike.num_poly(self.fet_order)
+
         for cell in self.burn_list:
 
             # Update total_number first
             for i in range(len(self.chain.nuclides)):
                 # Don't add if zero, for performance reasons.
-                if total_density[cell_i][i] != 0.0:
+                if total_density[cell_i][i*mp] != 0.0:
                     nuc = self.chain.nuclides[i].name
                     # Add a "infinitely dilute" quantity if negative
                     # TODO: DEBUG
-                    if total_density[cell_i][i] > 0.0:
-                        self.total_number[cell][nuc] = total_density[cell_i][i]
+                    if total_density[cell_i][i*mp] > 0.0:
+                        self.total_number[cell][nuc] = total_density[cell_i][i * mp]
                     else:
                         self.total_number[cell][nuc] = 1.0e5
 
@@ -608,7 +624,7 @@ class Geometry:
         # Unpack depletion list
 
         # Zero out reaction_rates
-        self.reaction_rates[:, :, :] = 0.0
+        self.reaction_rates[:, :, :, :] = 0.0
 
         # For each cell to be burned
         for cell_str in self.burn_cell_to_ind:
@@ -632,7 +648,7 @@ class Geometry:
 
                     # We have to get the tally at the inner loop because
                     # the tally number will vary based on reaction
-                    if (settings.fet_order > 0):
+                    if (True):
                         print('Getting tally ' + str(j+1))
                         tally_dep = statepoint.get_tally(id=k+1)
                         fet_tally_type = 'micro-' + nuclide.reaction_type[j] + '-zn'
@@ -643,23 +659,26 @@ class Geometry:
                     df_cell = df[df["cell"] == cell]
                     df_nuclide = df_cell[df_cell["nuclide"] == nuc]
 
-                    if (settings.fet_order > 0):
+                    if (True):
                         print('fet_Tally_type = ' + fet_tally_type)
                         print(df_nuclide[df_nuclide["score"] ==
-                                           fet_tally_type]["mean"])
-                        # Note that the micro rates are in barn x cm
-                        # so we need to put in cm^3
-                        # TODO incorporate the higher order moments
-                        value = df_nuclide[df_nuclide["score"] ==
-                                           fet_tally_type]["mean"].values[0] * 1e-24
+                                           fet_tally_type]["mean"].values)
+                        for f in range(settings.fet_order + 1):
+                            # Note that the micro rates are in barn x cm
+                            # so we need to put in cm^3
+                            # TODO incorporate the higher order moments
+                            value = df_nuclide[df_nuclide["score"] ==
+                                               fet_tally_type]["mean"].values[f] * 1e-24 * self.number_density[cell][nuc]
+                            self.reaction_rates[cell_str, nuclide.name, k, f] = value \
+                                / self.total_number[cell][nuc]
                     else:
                         value = df_nuclide[df_nuclide["score"] ==
                                            tally_type]["mean"].values[0]
 
-                    # The reaction rates are normalized to total number of
-                    # atoms in the simulation.
-                    self.reaction_rates[cell_str, nuclide.name, k] = value \
-                        / self.total_number[cell][nuc]
+                        # The reaction rates are normalized to total number of
+                        # atoms in the simulation.
+                        self.reaction_rates[cell_str, nuclide.name, k, 0] = value \
+                            / self.total_number[cell][nuc]
 
                     # Calculate power if fission
                     if tally_type == "fission" or tally_type == 'micro-fission-zn':
@@ -673,7 +692,7 @@ class Geometry:
         # Normalize to power
         original_power = sum(self.power.values())
 
-        self.reaction_rates[:, :, :] *= (settings.power / original_power)
+        self.reaction_rates[:, :, :, :] *= (settings.power / original_power)
 
         return k
 

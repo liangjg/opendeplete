@@ -10,6 +10,7 @@ import os
 from openmc_wrapper import *
 import scipy.sparse as sp
 import scipy.sparse.linalg as sla
+import scipy.linalg as ssla
 import numpy as np
 import time
 import copy
@@ -48,10 +49,14 @@ def predictor(op):
     for dt in op.settings.dt_vec:
         # Evaluate function at vec to get mat
         mat, eigvl, r1, seed = op.eval(vec)
+        print(mat[0])
+        print(ssla.eig(mat[0].toarray()))
         write_results(op, eigvl, [vec], [r1], [1], [seed], time, ind)
 
         # Update vec with the integrator.
         vec = matexp(mat, vec, dt)
+        print(vec[0])
+        dfafdsa()
         time += dt
         ind += 1
 

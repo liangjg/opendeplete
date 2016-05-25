@@ -106,8 +106,8 @@ def merge_results(rates_array, weights_array):
     # First, create an empty rate object
     r_bar = reaction_rates.ReactionRates(rates_array[0].cell_to_ind,
                                          rates_array[0].nuc_to_ind,
-                                         rates_array[0].react_to_ind)
-
+                                         rates_array[0].react_to_ind,
+                                         rates_array[0].max_poly_order)
     # Then, merge results
     for i in range(len(weights_array)):
         r_bar.rates += rates_array[i].rates

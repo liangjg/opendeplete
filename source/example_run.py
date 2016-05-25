@@ -24,7 +24,7 @@ dt = np.repeat([dt1], N)
 settings = openmc_wrapper.Settings()
 
 settings.cross_sections = \
-    "/home/cjosey/data/nndc/cross_sections.xml"
+    "/home/cjosey/code/openmc/data/nndc/cross_sections.xml"
 settings.chain_file = "/home/cjosey/code/opendeplete/chains/chain_simple.xml"
 settings.openmc_call = "/home/cjosey/code/other/ClassifiedMC_Depletion/bin/openmc"
 # An example for mpiexec:
@@ -36,7 +36,7 @@ settings.inactive = 40
 settings.power = 2.337e15*4  # MeV/second cm from CASMO
 settings.dt_vec = dt
 settings.output_dir = 'test'
-settings.fet_order = 15
+settings.fet_order = 0
 
 op = function.Operator()
 op.initialize(geometry, volume, materials, settings)
