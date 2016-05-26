@@ -2200,8 +2200,6 @@ def form_b_matrix(p, pp, rate):
     # Yields the sum
     # ret = sum_r Int[P_p * P_pp * P_r * rate_r] / Int[P_pp^2]
 
-    
-
     order = len(rate)
 
     v1 = b_matrix[p,pp,0:order]
