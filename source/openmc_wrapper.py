@@ -351,10 +351,10 @@ class Geometry:
         settings_file.batches = batches
         settings_file.inactive = inactive
         settings_file.particles = particles
-        settings_file.source = Source(space=Box([-3/2*pitch, -3/2*pitch, -1],
-                                                [3/2*pitch, 3/2*pitch, 1]))
-        settings_file.entropy_lower_left = [-3/2*pitch, -3/2*pitch, -1.e50]
-        settings_file.entropy_upper_right = [3/2*pitch, 3/2*pitch, 1.e50]
+        settings_file.source = Source(space=Box([-3.0/2.0*pitch, -3.0/2.0*pitch, -1],
+                                                [3.0/2.0*pitch, 3.0/2.0*pitch, 1]))
+        settings_file.entropy_lower_left = [-3.0/2.0*pitch, -3.0/2.0*pitch, -1.e50]
+        settings_file.entropy_upper_right = [3.0/2.0*pitch, 3.0/2.0*pitch, 1.e50]
         settings_file.entropy_dimension = [10, 10, 1]
 
         # Set seed
@@ -651,9 +651,10 @@ class Geometry:
                     # We have to get the tally at the inner loop because
                     # the tally number will vary based on reaction
                     if (True):
-                        print('Getting tally ' + str(j+1))
+                        print('Getting tally ' + str(k+1))
                         tally_dep = statepoint.get_tally(id=k+1)
                         fet_tally_type = 'micro-' + nuclide.reaction_type[j] + '-zn'
+                        
                     else:
                         tally_dep = statepoint.get_tally(id=1)
 
@@ -673,6 +674,15 @@ class Geometry:
                                                fet_tally_type]["mean"].values[f] * 1e-24 * self.number_density[cell][nuc]
                             self.reaction_rates[cell_str, nuclide.name, k, f] = value \
                                 / self.total_number[cell][nuc]
+
+                        self.reaction_rates.set_fet([cell_str,nuclide.name,k], \
+                            zernike.ZernikePolynomial(settings.fet_order, \
+                            df_nuclide[df_nuclide["score"] == fet_tally_type]["mean"].values,\
+                            0.412275))
+                        fet = self.reaction_rates.get_fet([cell_str,nuclide.name,k])
+                        fname = 'cell_' + cell_str + '_nuc_' + nuclide.name + '_react_' + nuclide.reaction_type[j]
+                        fet.plot_disk(20,32,fname)
+
                     else:
                         value = df_nuclide[df_nuclide["score"] ==
                                            tally_type]["mean"].values[0]

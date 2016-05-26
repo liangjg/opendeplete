@@ -2209,3 +2209,196 @@ def form_b_matrix(p, pp, rate):
     print(p, pp, rate, v1, np.dot(v1, rate)/c_matrix[pp])
     return np.dot(v1, rate)/c_matrix[pp]
 
+class ZernikePolynomial:
+    ''' ZernikePolynomial class
+    
+    This class contains the data that fully describes a Zernike polynomial
+    and supporting functions.
+
+    Attributes
+    ----------
+    order : int
+        The maximum order of the polynomial
+    radial_norm : flaot
+        The radial normalization factor
+    name : str
+        The name of the polynomial
+    n_coeffs : int
+        The number of coefficients for a given order
+    coeffs : List[flaot]
+        The coefficients of the polynomial ordered as (m,n) 
+        (0,0) (-1,1) (1,1) (-2,2) (0,2) (2,2) ...
+    p_coeffs : List[float]
+        Precomputed polynomial coefficients so that factorials
+        do not need to be evaluated for funciton evaluation.
+    '''
+    
+    import zernint as zni
+    
+    def __init__(self, order, coeffs, radial_norm=1.0):
+        self._order = order
+        self._radial_norm = radial_norm
+        self._name = ''
+        self._coeffs = coeffs
+        self._n_coeffs = int(1/2 * (order+1) * (order+2))
+        #self._p_coeffs = self.precompute_zn_coeffs()
+        
+    @property
+    def order(self):
+        return self._order
+
+    @property
+    def radial_norm(self):
+        return self._radial_norm
+    
+    @property
+    def coeffs(self):
+        return self._coeffs
+
+    @property
+    def n_coeffs(self):
+        return self._n_coeffs
+    
+    @property
+    def name(self):
+        return self._name
+
+    @order.setter
+    def order(self, order):
+        self._order = order
+
+    @coeffs.setter
+    def coeffs(self, coeffs):
+        self._coeffs = coeffs
+
+    @n_coeffs.setter
+    def n_coeffs(self, n_coeffs):
+        self._n_coeffs = n_coeffs
+            
+    @radial_norm.setter
+    def radial_norm(self, radial_norm):
+        self._radial_norm = radial_norm
+        
+    @name.setter
+    def name(self, name):
+        self._name = name
+
+
+    def order_to_index(self, n, m):
+        ''' Returns the index for accessing coefficients based 
+            on the (n,m) values.  
+        '''
+        return int(1/2 * (n) * (n+1))  + (m + n) // 2
+
+    def precompute_zn_coeffs(self):
+        ''' Precompute the zernike polynomial leading coefficeints
+        '''
+        poly_coeffs = []
+    
+        for n in range(0,(self.order+1)):
+            for m in range(-n,(n+1)):
+                if ((n-m) % 2 == 0):
+                    for s in range(0,(n-int(abs(m)/2))+1):
+                        print ('s = ' + str(s))
+                        poly_coeffs.append(R_m_n_s(n,m,s,self.radial_norm))
+
+        return poly_coeffs
+
+    def compute_integral(self, r_min, r_max, theta_min, theta_max):
+
+        import math
+        import zernint as zni
+        
+        ''' Compute the integral of the zernike polynomial over some 
+        subset of the unit disk
+
+        Parameters
+        ----------
+        r_min : float
+            The inner radius
+        r_max : float
+            The outer radius
+        theta_min : float
+            The minimum theta value
+        theta_max : float
+            The maxmium theta value
+        '''
+        # TODO replace coefficient num with a function call
+        val = 0.0
+        for n in range(0, self.order+1):
+            for m in range(-n,(n+1)):
+                if ((n-m) % 2 == 0):
+                    if (n == 0):
+                        norm_factor = 1.0 / math.pi * (2.0 * n + 2.0)
+                    else:
+                        norm_factor = 1.0 / math.pi * (n + 1.0)
+                    val += self.coeffs[self.order_to_index(n,m)] * norm_factor * \
+                           zni.integrate_wedge(n,0,r_min,r_max,theta_min, theta_max)
+        return val
+
+    def plot_disk(self, n_rings, n_sectors, fname):
+
+        import math
+        import numpy
+        import matplotlib.pyplot as plt
+        from matplotlib.patches import Circle, Wedge, Polygon
+        from matplotlib.collections import PatchCollection
+        
+        vol_per_ring = self.radial_norm * self.radial_norm * math.pi / n_rings       
+        ring_radii = [0.0]
+        for i in range(0, n_rings):
+            ring_radii.append( math.sqrt(vol_per_ring / math.pi \
+                            + ring_radii[-1] * ring_radii[-1]) )
+
+        theta_cuts = [0.0]
+        for i in range(0, n_sectors):
+            theta_cuts.append(theta_cuts[-1] + \
+                              math.pi * 2.0 / n_sectors)
+
+        patches = []
+        patch_vals = []
+        for i in range(0, n_rings):
+            for j in range(0, n_sectors):
+                
+                thickness = ring_radii[i+1] - ring_radii[i]
+                if(j == n_sectors-1):  # Loop around the sectors
+                    patch_vals.append(self.compute_integral(ring_radii[i], ring_radii[i+1],\
+                                                            theta_cuts[j], 2*math.pi))
+                    wedge = Wedge( (0.0,0.0), ring_radii[i+1], theta_cuts[j]*180.0/math.pi, theta_cuts[0]*180.0/math.pi, width=thickness)
+                else:
+                    patch_vals.append(self.compute_integral(ring_radii[i], ring_radii[i+1],\
+                                                        theta_cuts[j], theta_cuts[j+1]))
+                    wedge = Wedge( (0.0,0.0), ring_radii[i+1], theta_cuts[j]*180.0/math.pi, theta_cuts[j+1]*180.0/math.pi, width=thickness)
+                patches.append(wedge)
+                
+        fig, ax = plt.subplots()
+        ax.set_xlim([-self.radial_norm,self.radial_norm])
+        ax.set_ylim([-self.radial_norm,self.radial_norm])
+        p = PatchCollection(patches, cmap=plt.cm.jet)
+        p.set_array(numpy.array(patch_vals))
+        ax.add_collection(p)
+        plt.colorbar(p)
+        fig.savefig(fname)
+        plt.close()
+        
+def R_m_n_s(n, m, s, r_max=1.0):
+
+    import math
+    
+    # This function computes a single term in the
+    # R(m,n) summaation for a given s value with
+    # an option for non-unitary maximum radius
+    # The sum over all valid s will give R(m,n)
+   
+    # THIS FUNCTION DOES NOT CHECK IF n,m,or s
+    # ARE VALID
+    
+    if (m == 0):
+        norm_factor = n + 1.0
+    else:
+        norm_factor = 2.0 * n + 2.0
+    
+    return (1.0 / (math.pi * r_max * r_max) * \
+        math.sqrt(norm_factor) * math.pow(-1,s) * \
+        math.factorial(n-s) / ( math.factorial(s) * math.factorial((n+m)//2 - s) * \
+                                math.factorial( (n-m)//2 - s) ) )
