@@ -13,6 +13,7 @@ from collections import OrderedDict
 import depletion_chain
 import numpy as np
 import zernike
+import math
 
 
 class Settings:
@@ -665,14 +666,31 @@ class Geometry:
                         print('fet_Tally_type = ' + fet_tally_type)
                         print(df_nuclide[df_nuclide["score"] ==
                                            fet_tally_type]["mean"].values)
+                        n = 0
+                        m = 0
                         for f in range(mp):
                             # Note that the micro rates are in barn x cm
                             # so we need to put in cm^3
                             # TODO incorporate the higher order moments
+
+                            # Calculate normalization coefficient
+                            norm = 0
+                            if m == 0:
+                                norm = math.sqrt(n + 1)
+                            else:
+                                norm = math.sqrt(2*n + 2)
+                            
                             value = df_nuclide[df_nuclide["score"] ==
                                                fet_tally_type]["mean"].values[f] * 1e-24 * self.number_density[cell][nuc]
                             self.reaction_rates[cell_str, nuclide.name, k, f] = value \
-                                / self.total_number[cell][nuc]
+                                / self.total_number[cell][nuc] * norm
+
+                            # Update n, m
+                            if m == n:
+                                n += 1
+                                m = -n
+                            else:
+                                m += 2
                     else:
                         value = df_nuclide[df_nuclide["score"] ==
                                            tally_type]["mean"].values[0]

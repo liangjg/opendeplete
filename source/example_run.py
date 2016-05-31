@@ -33,10 +33,10 @@ settings.particles = 10000
 settings.batches = 100
 settings.inactive = 40
 
-settings.power = 2.337e15*4  # MeV/second cm from CASMO
+settings.power = 2.337e15*4/9  # MeV/second cm from CASMO
 settings.dt_vec = dt
 settings.output_dir = 'test'
-settings.fet_order = 2
+settings.fet_order = 6
 
 op = function.Operator()
 op.initialize(geometry, volume, materials, settings)
