@@ -2235,13 +2235,14 @@ class ZernikePolynomial:
     
     import zernint as zni
     
-    def __init__(self, order, coeffs, radial_norm=1.0):
+    def __init__(self, order, coeffs, radial_norm=1.0, sqrt_normed=False):
         self._order = order
         self._radial_norm = radial_norm
         self._name = ''
         self._coeffs = coeffs
         self._n_coeffs = int(1/2 * (order+1) * (order+2))
-        #self._p_coeffs = self.precompute_zn_coeffs()
+        self._sqrt_normed = sqrt_normed
+        self._p_coeffs = self.precompute_zn_coeffs()
         
     @property
     def order(self):
@@ -2263,6 +2264,10 @@ class ZernikePolynomial:
     def name(self):
         return self._name
 
+    @property
+    def sqrt_normed(self):
+        return self._sqrt_normed
+
     @order.setter
     def order(self, order):
         self._order = order
@@ -2283,6 +2288,10 @@ class ZernikePolynomial:
     def name(self, name):
         self._name = name
 
+    @sqrt_normed.setter
+    def name(self, sqrt_normed):
+        self._sqrt_normed = sqrt_normed
+
 
     def order_to_index(self, n, m):
         ''' Returns the index for accessing coefficients based 
@@ -2292,25 +2301,74 @@ class ZernikePolynomial:
 
     def precompute_zn_coeffs(self):
         ''' Precompute the zernike polynomial leading coefficeints
+
+            Note that all FETs in OpenMC and reconstruction in
+            MOOSE assume that the square root of the normalization
+            constant is included.  These are embedded in poly_coeffs.
         '''
+
         poly_coeffs = []
-    
+
         for n in range(0,(self.order+1)):
-            for m in range(-n,(n+1)):
-                if ((n-m) % 2 == 0):
-                    for s in range(0,(n-int(abs(m)/2))+1):
-                        print ('s = ' + str(s))
-                        poly_coeffs.append(R_m_n_s(n,m,s,self.radial_norm))
+            for m in range(-n,(n+1),2):
+                for s in range(0,(n-abs(m))//2+1):
+                    poly_coeffs.append(self.R_m_n_s(n,m,s,self.radial_norm))
 
         return poly_coeffs
 
-    def compute_integral(self, r_min, r_max, theta_min, theta_max):
+    def get_poly_value(self, r, theta):
+        ''' Compute the value of a polynomial at a point.
+
+            Note that the precomputed leading coefficients,
+            p_coeffs[], assuems that the square root of the
+            normalization constant is included in the coefficients
+            coeffs[]
+
+            Parameters
+            ----------
+            r : float
+                 The radial point.  Not normalizated.
+            theta : float
+                 The theta value in radians.
+
+        '''
 
         import math
-        import zernint as zni
         
+        p_coeff_num = 0
+        val = 0.0
+
+        for n in range(0,(self.order+1)):
+            for m in range(-n,(n+1)):
+                if ((n-m) % 2 == 0):
+
+                    if( (n-m) % 2 == 0 and m == 0 ):
+                        azim_factor = 1.0
+                    elif ( (n-m) % 2 == 0 and m < 0):
+                        azim_factor = math.sin(abs(m) * theta)
+                    elif ( (n-m) % 2 == 0 and m > 0):
+                        azim_factor = math.cos(m * theta)
+                    else:
+                        print("n = "+str(n)+", m = "+str(m))
+                        print("Invalid value of m and n");
+
+                    for s in range(0,(n-abs(m))//2+1):
+                        val = val + self.coeffs[self.order_to_index(n,m)] * \
+                              self._p_coeffs[p_coeff_num] * \
+                              (r/self.radial_norm)**(int(n-2*s)) * \
+                              azim_factor
+                        p_coeff_num = p_coeff_num + 1
+
+        return val
+
+    def compute_integral(self, r_min, r_max, theta_min, theta_max):
         ''' Compute the integral of the zernike polynomial over some 
         subset of the unit disk
+
+        Note that the normalization factor is included because
+        it is assumed that the polynomials coefficients include
+        the square root of the normalization constants but
+        integrate_wedge() does not use this multiplicate constant.
 
         Parameters
         ----------
@@ -2323,20 +2381,36 @@ class ZernikePolynomial:
         theta_max : float
             The maxmium theta value
         '''
-        # TODO replace coefficient num with a function call
+
+        import math
+        import zernint as zni
+        import sys
+
         val = 0.0
+
         for n in range(0, self.order+1):
-            for m in range(-n,(n+1)):
-                if ((n-m) % 2 == 0):
-                    if (n == 0):
-                        norm_factor = 1.0 / math.pi * (2.0 * n + 2.0)
-                    else:
-                        norm_factor = 1.0 / math.pi * (n + 1.0)
-                    val += self.coeffs[self.order_to_index(n,m)] * norm_factor * \
-                           zni.integrate_wedge(n,0,r_min,r_max,theta_min, theta_max)
+            for m in range(-n,(n+1),2):
+                norm_factor = self.get_norm_factor(m)
+
+                val += self.coeffs[self.order_to_index(n,m)] * norm_factor * \
+                       zni.integrate_wedge(n,m,r_min,r_max,theta_min, theta_max)
+
         return val
 
     def plot_disk(self, n_rings, n_sectors, fname):
+        ''' This function plots the volume averaged value of the
+        Zernike polynonmials in radial rings and azimuthal
+        sectors.
+
+        Parameters
+        ----------
+        n_rings : int
+             The number of rings to split the disk into.
+        n_sectors : int
+             The number of azimuthal sectors in each ring.
+        fname : str
+             The name of the file into which to save the plot.
+        '''
 
         import math
         import numpy
@@ -2362,11 +2436,11 @@ class ZernikePolynomial:
                 
                 thickness = ring_radii[i+1] - ring_radii[i]
                 if(j == n_sectors-1):  # Loop around the sectors
-                    patch_vals.append(self.compute_integral(ring_radii[i], ring_radii[i+1],\
+                    patch_vals.append(self.compute_integral(ring_radii[i]/self.radial_norm, ring_radii[i+1]/self.radial_norm,\
                                                             theta_cuts[j], 2*math.pi))
                     wedge = Wedge( (0.0,0.0), ring_radii[i+1], theta_cuts[j]*180.0/math.pi, theta_cuts[0]*180.0/math.pi, width=thickness)
                 else:
-                    patch_vals.append(self.compute_integral(ring_radii[i], ring_radii[i+1],\
+                    patch_vals.append(self.compute_integral(ring_radii[i]/self.radial_norm, ring_radii[i+1]/self.radial_norm,\
                                                         theta_cuts[j], theta_cuts[j+1]))
                     wedge = Wedge( (0.0,0.0), ring_radii[i+1], theta_cuts[j]*180.0/math.pi, theta_cuts[j+1]*180.0/math.pi, width=thickness)
                 patches.append(wedge)
@@ -2380,25 +2454,95 @@ class ZernikePolynomial:
         plt.colorbar(p)
         fig.savefig(fname)
         plt.close()
-        
-def R_m_n_s(n, m, s, r_max=1.0):
 
-    import math
-    
-    # This function computes a single term in the
-    # R(m,n) summaation for a given s value with
-    # an option for non-unitary maximum radius
-    # The sum over all valid s will give R(m,n)
-   
-    # THIS FUNCTION DOES NOT CHECK IF n,m,or s
-    # ARE VALID
-    
-    if (m == 0):
-        norm_factor = n + 1.0
-    else:
-        norm_factor = 2.0 * n + 2.0
-    
-    return (1.0 / (math.pi * r_max * r_max) * \
-        math.sqrt(norm_factor) * math.pow(-1,s) * \
-        math.factorial(n-s) / ( math.factorial(s) * math.factorial((n+m)//2 - s) * \
-                                math.factorial( (n-m)//2 - s) ) )
+    def plot_over_line(self, theta, fname):
+        ''' This funciton plots the polynomial over the entire disk
+            along a specific theta value
+
+        Parameters
+        ----------
+        theta : float
+             The theta value over which to plot from [0, R_max]
+        fname : str
+             The filename to use when saving the figure
+        
+        '''
+
+        import matplotlib.pyplot as plt
+
+        # We will use a linearly spaced set of points for now to plot
+        r_vals = np.linspace(0.0, self.radial_norm, num=1000)
+        vals = []
+
+        for r in r_vals:
+            vals.append(self.get_poly_value(r,theta))
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(r_vals, vals)
+        fig.savefig(fname)
+        plt.close()
+
+    def remove_fet_sqrt_normalization(self):
+        ''' This function removes the sqrt(2(n+1)) or sqrt(n+1)
+        normalization that is applied in OpenMC FETs.
+        '''
+
+        for n in range(0, self.order+1):
+            for m in range(-n,(n+1),2):
+                if (m == 0):
+                    self.coeffs[self.order_to_index(n,m)] /= sqrt(n+1.0)
+                else:
+                    self.coeffs[self.order_to_index(n,m)] /= sqrt(2.0*n+2.0)
+
+        self.sqrt_normed = False
+        # Since we might hvae changed the normalization state, we need
+        # to recompute the precomputed polynomial coefficients
+        self._p_coeffs = self.precompute_zn_coeffs()
+
+    def get_norm_factor(self, m):
+        ''' This function determines the normalization factor
+        to be applied
+
+        Parameters
+        ----------
+        m : int
+             The azimuthal moment number
+        '''
+
+        if (m == 0 and self.sqrt_normed):
+            return (1.0 / math.pi * math.sqrt(n + 1.0))
+        elif (m != 0 and self.sqrt_normed):
+            return (1.0 / math.pi * math.sqrt(2.0 * n + 2.0))
+        elif (not self.sqrt_normed):
+            return 1.0
+        else:
+            sys.exit("Invalid state when calculating normalization factor")
+
+    def R_m_n_s(self, n, m, s, r_max=1.0):
+        ''' This function calculates the R_{n,m}(r)
+        coefficients.  Note that this funciton does not check if
+        n, m, or s are valid.
+
+        Parameters
+        ----------
+        n : int
+             The azimuthal moment number
+        m : int
+             The azimuthal moment number
+        s : int
+             One of the summation terms that defines R_{n,m}
+             s is defined as [0,(n-abs(m))/2]
+        r_max : float
+             The maximum radius of the disk
+
+        '''
+
+        import math
+
+        norm_factor = self.get_norm_factor(m)
+
+        return (1.0 / (r_max * r_max) * math.sqrt(norm_factor) * \
+                math.pow(-1,s) * math.factorial(n-s) / \
+                ( math.factorial(s) * math.factorial((n+m)//2 - s) * \
+                  math.factorial( (n-m)//2 - s) ) )
