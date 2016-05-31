@@ -2500,6 +2500,21 @@ class ZernikePolynomial:
         # to recompute the precomputed polynomial coefficients
         self._p_coeffs = self.precompute_zn_coeffs()
 
+    def scale_coefficients(self, scale_value):
+        ''' This function scales every coefficient in the expansion
+        by a given value
+
+        Parameters
+        ----------
+        scale_value : float
+             The scaling value to apply
+        '''
+
+        for n in range(0, self.order+1):
+            for m in range(-n,(n+1),2):
+                self.coeffs[self.order_to_index(n,m)] *= scale_value
+
+
     def get_norm_factor(self, m):
         ''' This function determines the normalization factor
         to be applied
