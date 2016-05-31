@@ -2326,14 +2326,15 @@ class ZernikePolynomial:
         # TODO replace coefficient num with a function call
         val = 0.0
         for n in range(0, self.order+1):
-            for m in range(-n,(n+1)):
-                if ((n-m) % 2 == 0):
-                    if (n == 0):
-                        norm_factor = 1.0 / math.pi * (2.0 * n + 2.0)
-                    else:
-                        norm_factor = 1.0 / math.pi * (n + 1.0)
-                    val += self.coeffs[self.order_to_index(n,m)] * norm_factor * \
-                           zni.integrate_wedge(n,0,r_min,r_max,theta_min, theta_max)
+            for m in range(-n,(n+1),2):
+                if (n == 0):
+                    norm_factor = 1.0 / math.pi * (2.0 * n + 2.0)
+                else:
+                    norm_factor = 1.0 / math.pi * (n + 1.0)
+                norm_factor = 1.0
+                val += self.coeffs[self.order_to_index(n,m)] * norm_factor * \
+                       zni.integrate_wedge(n,m,r_min,r_max,theta_min, theta_max)
+        print(val)
         return val
 
     def plot_disk(self, n_rings, n_sectors, fname):
@@ -2374,7 +2375,7 @@ class ZernikePolynomial:
         fig, ax = plt.subplots()
         ax.set_xlim([-self.radial_norm,self.radial_norm])
         ax.set_ylim([-self.radial_norm,self.radial_norm])
-        p = PatchCollection(patches, cmap=plt.cm.jet)
+        p = PatchCollection(patches, cmap=plt.cm.plasma)
         p.set_array(numpy.array(patch_vals))
         ax.add_collection(p)
         plt.colorbar(p)
