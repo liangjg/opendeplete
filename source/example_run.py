@@ -30,14 +30,14 @@ settings.chain_file = "/Users/mellis/opendeplete/chains/chain_simple.xml"
 settings.openmc_call = "/Users/mellis/ClassifiedMC_Depletion/src/build/bin/openmc"
 # An example for mpiexec:
 # settings.openmc_call = ["mpiexec", "/home/cjosey/code/openmc/bin/openmc"]
-settings.particles = 2000
-settings.batches = 50
+settings.particles = 10000
+settings.batches = 100
 settings.inactive = 40
 
-settings.power = 2.337e15*4  # MeV/second cm from CASMO
+settings.power = 2.337e15*4/9  # MeV/second cm from CASMO
 settings.dt_vec = dt
 settings.output_dir = 'test'
-settings.fet_order = 2
+settings.fet_order = 6
 
 op = function.Operator()
 op.initialize(geometry, volume, materials, settings)

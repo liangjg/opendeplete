@@ -13,6 +13,7 @@ from collections import OrderedDict
 import depletion_chain
 import numpy as np
 import zernike
+import math
 
 
 class Settings:
@@ -666,22 +667,20 @@ class Geometry:
                         print('fet_Tally_type = ' + fet_tally_type)
                         print(df_nuclide[df_nuclide["score"] ==
                                            fet_tally_type]["mean"].values)
-                        for f in range(mp):
-                            # Note that the micro rates are in barn x cm
-                            # so we need to put in cm^3
-                            # TODO incorporate the higher order moments
-                            value = df_nuclide[df_nuclide["score"] ==
-                                               fet_tally_type]["mean"].values[f] * 1e-24 * self.number_density[cell][nuc]
-                            self.reaction_rates[cell_str, nuclide.name, k, f] = value \
-                                / self.total_number[cell][nuc]
 
-                        self.reaction_rates.set_fet([cell_str,nuclide.name,k], \
-                            zernike.ZernikePolynomial(settings.fet_order, \
-                            df_nuclide[df_nuclide["score"] == fet_tally_type]["mean"].values,\
-                            0.412275))
-                        fet = self.reaction_rates.get_fet([cell_str,nuclide.name,k])
-                        fname = 'cell_' + cell_str + '_nuc_' + nuclide.name + '_react_' + nuclide.reaction_type[j]
-                        fet.plot_disk(20,32,fname)
+                        # Create FET
+                        fet_coeffs = df_nuclide[df_nuclide["score"] == fet_tally_type]["mean"].values
+                        fet = zernike.ZernikePolynomial(settings.fet_order, fet_coeffs, \
+                                                        0.412275, sqrt_normed=True)
+                        
+                        # Remove the sqrt normalization in OpenMC
+                        fet.remove_fet_sqrt_normalization()
+
+                        # Scale the FET microrate from barn x cm to cm^3
+                        fet.scale_coefficients( self.number_density[cell][nuc] * 1e-24 / self.total_number[cell][nuc])
+
+                        # Store the FET and reaction rates values
+                        self.reaction_rates.set_fet([cell_str,nuclide.name,k], fet)
 
                     else:
                         value = df_nuclide[df_nuclide["score"] ==
@@ -693,15 +692,15 @@ class Geometry:
                             / self.total_number[cell][nuc]
 
                     # Calculate power if fission
-                    if tally_type == "fission":
+                    if False:
                         power = value * nuclide.fission_power
                         if cell not in self.power:
                             self.power[cell] = power
                         else:
                             self.power[cell] += power
-                    elif tally_type == 'micro-fission-zn':
+                    else:
                         value = df_nuclide[df_nuclide["score"] ==
-                                           tally_type]["mean"].values[0] * 1e-24 * self.number_density[cell][nuc]
+                                           fet_tally_type]["mean"].values[0] * 1e-24 * self.number_density[cell][nuc]
                         power = value * nuclide.fission_power
                         if cell not in self.power:
                             self.power[cell] = power
