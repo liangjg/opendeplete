@@ -13,6 +13,7 @@ from collections import OrderedDict
 import depletion_chain
 import numpy as np
 import zernike
+import math
 
 
 class Settings:
@@ -681,9 +682,6 @@ class Geometry:
                         # Store the FET and reaction rates values
                         self.reaction_rates.set_fet([cell_str,nuclide.name,k], fet)
 
-                        # Set this for the if statement below on power
-                        tally_type = fet_tally_type
-
                     else:
                         value = df_nuclide[df_nuclide["score"] ==
                                            tally_type]["mean"].values[0]
@@ -694,15 +692,15 @@ class Geometry:
                             / self.total_number[cell][nuc]
 
                     # Calculate power if fission
-                    if tally_type == 'fission':
+                    if False:
                         power = value * nuclide.fission_power
                         if cell not in self.power:
                             self.power[cell] = power
                         else:
                             self.power[cell] += power
-                    elif tally_type == 'micro-fission-zn':
+                    else:
                         value = df_nuclide[df_nuclide["score"] ==
-                                           tally_type]["mean"].values[0] * 1e-24 * self.number_density[cell][nuc]
+                                           fet_tally_type]["mean"].values[0] * 1e-24 * self.number_density[cell][nuc]
                         power = value * nuclide.fission_power
                         if cell not in self.power:
                             self.power[cell] = power

@@ -2200,8 +2200,6 @@ def form_b_matrix(p, pp, rate):
     # Yields the sum
     # ret = sum_r Int[P_p * P_pp * P_r * rate_r] / Int[P_pp^2]
 
-    
-
     order = len(rate)
 
     v1 = b_matrix[p,pp,0:order]
@@ -2391,7 +2389,6 @@ class ZernikePolynomial:
         for n in range(0, self.order+1):
             for m in range(-n,(n+1),2):
                 norm_factor = self.get_norm_factor(n,m)
-
                 val += self.coeffs[self.order_to_index(n,m)] * norm_factor * \
                        zni.integrate_wedge(n,m,r_min,r_max,theta_min, theta_max)
 
@@ -2441,7 +2438,7 @@ class ZernikePolynomial:
                     wedge = Wedge( (0.0,0.0), ring_radii[i+1], theta_cuts[j]*180.0/math.pi, theta_cuts[0]*180.0/math.pi, width=thickness)
                 else:
                     patch_vals.append(self.compute_integral(ring_radii[i]/self.radial_norm, ring_radii[i+1]/self.radial_norm,\
-                                                        theta_cuts[j], theta_cuts[j+1]))
+                                                            theta_cuts[j], theta_cuts[j+1]))
                     wedge = Wedge( (0.0,0.0), ring_radii[i+1], theta_cuts[j]*180.0/math.pi, theta_cuts[j+1]*180.0/math.pi, width=thickness)
                 patches.append(wedge)
                 
@@ -2497,7 +2494,27 @@ class ZernikePolynomial:
                     self.coeffs[self.order_to_index(n,m)] /= math.sqrt(2.0*n+2.0)
 
         self.sqrt_normed = False
-        # Since we might hvae changed the normalization state, we need
+        # Since we might have changed the normalization state, we need
+        # to recompute the precomputed polynomial coefficients
+        self._p_coeffs = self.precompute_zn_coeffs()
+
+    def normalize_coefficients(self):
+        ''' This function normalizes coefficients by (n+1) / pi or
+        (2n+2) / pi.
+        '''
+        import math
+
+        for n in range(0, self.order+1):
+            for m in range(-n,(n+1),2):
+                if (m == 0):
+                    self.coeffs[self.order_to_index(n,m)] *= (n+1.0)
+                else:
+                    self.coeffs[self.order_to_index(n,m)] *= (2.0*n+2.0)
+
+                self.coeffs[self.order_to_index(n,m)] /= math.pi
+
+        self.sqrt_normed = False
+        # Since we might have changed the normalization state, we need
         # to recompute the precomputed polynomial coefficients
         self._p_coeffs = self.precompute_zn_coeffs()
 
