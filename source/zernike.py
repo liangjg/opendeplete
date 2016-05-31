@@ -2289,7 +2289,7 @@ class ZernikePolynomial:
         self._name = name
 
     @sqrt_normed.setter
-    def name(self, sqrt_normed):
+    def sqrt_normed(self, sqrt_normed):
         self._sqrt_normed = sqrt_normed
 
 
@@ -2390,7 +2390,7 @@ class ZernikePolynomial:
 
         for n in range(0, self.order+1):
             for m in range(-n,(n+1),2):
-                norm_factor = self.get_norm_factor(m)
+                norm_factor = self.get_norm_factor(n,m)
 
                 val += self.coeffs[self.order_to_index(n,m)] * norm_factor * \
                        zni.integrate_wedge(n,m,r_min,r_max,theta_min, theta_max)
@@ -2487,13 +2487,14 @@ class ZernikePolynomial:
         ''' This function removes the sqrt(2(n+1)) or sqrt(n+1)
         normalization that is applied in OpenMC FETs.
         '''
+        import math
 
         for n in range(0, self.order+1):
             for m in range(-n,(n+1),2):
                 if (m == 0):
-                    self.coeffs[self.order_to_index(n,m)] /= sqrt(n+1.0)
+                    self.coeffs[self.order_to_index(n,m)] /= math.sqrt(n+1.0)
                 else:
-                    self.coeffs[self.order_to_index(n,m)] /= sqrt(2.0*n+2.0)
+                    self.coeffs[self.order_to_index(n,m)] /= math.sqrt(2.0*n+2.0)
 
         self.sqrt_normed = False
         # Since we might hvae changed the normalization state, we need
@@ -2515,16 +2516,19 @@ class ZernikePolynomial:
                 self.coeffs[self.order_to_index(n,m)] *= scale_value
 
 
-    def get_norm_factor(self, m):
+    def get_norm_factor(self, n, m):
         ''' This function determines the normalization factor
         to be applied
 
         Parameters
         ----------
+        n : int
+             The radial moment number
         m : int
              The azimuthal moment number
         '''
-
+        import math
+        
         if (m == 0 and self.sqrt_normed):
             return (1.0 / math.pi * math.sqrt(n + 1.0))
         elif (m != 0 and self.sqrt_normed):
@@ -2555,7 +2559,7 @@ class ZernikePolynomial:
 
         import math
 
-        norm_factor = self.get_norm_factor(m)
+        norm_factor = self.get_norm_factor(n,m)
 
         return (1.0 / (r_max * r_max) * math.sqrt(norm_factor) * \
                 math.pow(-1,s) * math.factorial(n-s) / \

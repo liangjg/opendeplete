@@ -121,7 +121,8 @@ class ReactionRates:
         
     # TODO make these properties with decorators 
     def set_fet(self, pos, fet):
-        """ Sets the fet in the reaction rates object
+        """ Sets the fet in the reaction rates object and tries
+        to automatically set the reaction rate values as well
         
         Parameters
         ----------
@@ -147,6 +148,9 @@ class ReactionRates:
             react_id = react
             
         self.fets[cell_id][nuc_id][react_id] = fet
+
+        for i in range(0, fet.n_coeffs):
+            self[cell, nuc, react, i] = fet.coeffs[i]
             
     def get_fet(self, pos):
         """ Gets the fet in the reaction rates object
