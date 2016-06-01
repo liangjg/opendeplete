@@ -2407,6 +2407,11 @@ class ZernikePolynomial:
              The number of azimuthal sectors in each ring.
         fname : str
              The name of the file into which to save the plot.
+        
+        Returns
+        -------
+        patch_vals : List
+            List of patch values used in plot.
         '''
 
         import math
@@ -2452,6 +2457,8 @@ class ZernikePolynomial:
         fig.savefig(fname)
         plt.close()
 
+        return patch_vals
+
     def plot_over_line(self, theta, fname):
         ''' This funciton plots the polynomial over the entire disk
             along a specific theta value
@@ -2489,9 +2496,9 @@ class ZernikePolynomial:
         for n in range(0, self.order+1):
             for m in range(-n,(n+1),2):
                 if (m == 0):
-                    self.coeffs[self.order_to_index(n,m)] /= math.sqrt(n+1.0)
+                    self.coeffs[self.order_to_index(n,m)] *= math.sqrt(n+1.0)
                 else:
-                    self.coeffs[self.order_to_index(n,m)] /= math.sqrt(2.0*n+2.0)
+                    self.coeffs[self.order_to_index(n,m)] *= math.sqrt(2.0*n+2.0)
 
         self.sqrt_normed = False
         # Since we might have changed the normalization state, we need

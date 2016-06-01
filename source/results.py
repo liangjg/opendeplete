@@ -5,7 +5,7 @@ Contains results generation and saving capabilities.
 
 import reaction_rates
 import concentrations
-#import lzma
+import lzma
 import pickle
 
 
@@ -143,7 +143,7 @@ def write_results(op, eigvl, d_vec, rates, weights, seeds, time, ind):
     res = Results(op, eigvl, d_vec, rates, weights, seeds, time)
 
     # Pickle results
-    output = open('step' + str(ind) + '.pklz', 'wb')
+    output = lzma.open('step' + str(ind) + '.pklz', 'wb')
 
     pickle.dump(res, output)
 
@@ -165,7 +165,7 @@ def read_results(filename):
     """
 
     # Unpickle results
-    handle = open(filename, 'rb')
+    handle = lzma.open(filename, 'rb')
 
     results = pickle.load(handle)
 

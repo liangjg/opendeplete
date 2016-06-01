@@ -51,7 +51,10 @@ class ReactionRates:
         self.n_nuc = len(nuc_to_ind)
         self.n_react = len(react_to_ind)
         self.max_poly_order = max_poly_order
-        self.n_poly = zernike.num_poly(max_poly_order)
+        if max_poly_order != None:
+            self.n_poly = zernike.num_poly(max_poly_order)
+        else:
+            self.n_poly = 1
 
         self.rates = np.zeros((self.n_cell, self.n_nuc, self.n_react, self.n_poly))
         self.fets = [[[None for x in range(self.n_react)] for y in range(self.n_nuc)] for z in range(self.n_cell)]

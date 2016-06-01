@@ -559,7 +559,10 @@ class Geometry:
 
         cell_i = 0
 
-        mp = zernike.num_poly(self.fet_order)
+        if (self.fet_order == None):
+            mp = 1
+        else:
+            mp = zernike.num_poly(self.fet_order)
 
         for cell in self.burn_list:
 
@@ -651,7 +654,7 @@ class Geometry:
 
                     # We have to get the tally at the inner loop because
                     # the tally number will vary based on reaction
-                    if (True):
+                    if (settings.fet_order != None):
                         print('Getting tally ' + str(k+1))
                         tally_dep = statepoint.get_tally(id=k+1)
                         fet_tally_type = 'micro-' + nuclide.reaction_type[j] + '-zn'
@@ -663,7 +666,7 @@ class Geometry:
                     df_cell = df[df["cell"] == cell]
                     df_nuclide = df_cell[df_cell["nuclide"] == nuc]
 
-                    if (True):
+                    if (settings.fet_order != None):
                         print('fet_Tally_type = ' + fet_tally_type)
                         print(df_nuclide[df_nuclide["score"] ==
                                            fet_tally_type]["mean"].values)
@@ -692,13 +695,13 @@ class Geometry:
                             / self.total_number[cell][nuc]
 
                     # Calculate power if fission
-                    if False:
+                    if settings.fet_order == None and tally_type == "fission":
                         power = value * nuclide.fission_power
                         if cell not in self.power:
                             self.power[cell] = power
                         else:
                             self.power[cell] += power
-                    else:
+                    elif tally_type == "fission":
                         value = df_nuclide[df_nuclide["score"] ==
                                            fet_tally_type]["mean"].values[0] * 1e-24 * self.number_density[cell][nuc]
                         power = value * nuclide.fission_power
