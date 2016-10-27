@@ -7,23 +7,25 @@ import openmc_wrapper
 import example_geometry
 import integrator
 
+order = 2
+
 # Load geometry from example
 geometry, volume = example_geometry.generate_geometry()
-materials = example_geometry.generate_initial_number_density()
+materials = example_geometry.generate_initial_number_density(order, 0.412275)
 
 # Create dt vector for 5.5 months with 15 day timesteps
-dt1 = 15*24*60*60  # 15 days
-dt2 = 5.5*30*24*60*60  # 5.5 months
-dt = 30*24*60*60
-N = np.floor(dt2/dt1)
-N = 1
+dt1 = 24*60*60  # 15 days
+#~ dt2 = 5.5*30*24*60*60  # 5.5 months
+#~ dt = 2*30*24*60*60
+#~ N = np.floor(dt2/dt1)
+N = 10
 
 dt = np.repeat([dt1], N)
 
 # Create settings variable
 settings = openmc_wrapper.Settings()
 
-settings.cross_sections = "/home/cjosey/code/openmc/data/nndc/cross_sections.xml"
+settings.cross_sections = "/home/cjosey/code/other/ClassifiedMC_Depletion/data/nndc/cross_sections.xml"
 settings.chain_file = "/home/cjosey/code/opendeplete/chains/chain_simple.xml"
 settings.openmc_call = "/home/cjosey/code/other/ClassifiedMC_Depletion/bin/openmc"
 #~ settings.cross_sections = "/Users/mellis/ClassifiedMC/data/nndc/cross_sections.xml"
@@ -37,8 +39,8 @@ settings.inactive = 40
 
 settings.power = 2.337e15*4/9  # MeV/second cm from CASMO
 settings.dt_vec = dt
-settings.output_dir = 'test'
-settings.fet_order = 6
+settings.output_dir = 'test_2month'
+settings.fet_order = order
 
 op = function.Operator()
 op.initialize(geometry, volume, materials, settings)

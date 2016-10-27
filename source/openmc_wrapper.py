@@ -307,9 +307,16 @@ class Geometry:
                 if key_nuc in self.participating_nuclides:
                     nuc = openmc.Nuclide(key_nuc,
                                          xs=self.materials.library[mat_name])
-                    mat[i].add_nuclide(nuc,
-                                       self.number_density[key_mat][key_nuc])
-                    total += self.number_density[key_mat][key_nuc]
+                    if type(self.number_density[key_mat][key_nuc]) is zernike.ZernikePolynomial:
+                        
+                        nuc.poly_coeffs = self.number_density[key_mat][key_nuc].openmc_form()
+                        mat[i].add_nuclide(nuc,
+                                           self.number_density[key_mat][key_nuc].coeffs[0])
+                        total += self.number_density[key_mat][key_nuc].coeffs[0]
+                    else:
+                        mat[i].add_nuclide(nuc,
+                                           self.number_density[key_mat][key_nuc])
+                        total += self.number_density[key_mat][key_nuc]
             mat[i].set_density('atom/cm3', total)
 
             if mat_name in self.materials.sab:
@@ -474,8 +481,13 @@ class Geometry:
         total = 0.0
         for key in self.number_density[m_id]:
             nuc = openmc.Nuclide(key)
-            mat.add_nuclide(nuc, self.number_density[m_id][key])
-            total += self.number_density[m_id][key]
+            if type(self.number_density[m_id][key]) is zernike.ZernikePolynomial:
+                nuc.poly_coeffs = self.number_density[m_id][key].openmc_form()
+                mat.add_nuclide(nuc, self.number_density[m_id][key].coeffs[0])
+                total += self.number_density[m_id][key].coeffs[0]
+            else:
+                mat.add_nuclide(nuc, self.number_density[m_id][key])
+                total += self.number_density[m_id][key]
         mat.set_density('atom/cm3', total)
 
         return mat
@@ -526,11 +538,8 @@ class Geometry:
             for i in range(len(self.chain.nuclides)):
                 if self.chain.nuclides[i].name in self.total_number[cell]:
                     for p in range(mp):
-                        if p == 0:
-                            total_density[cell_i].append(
-                                self.total_number[cell][self.chain.nuclides[i].name])
-                        else:
-                            total_density[cell_i].append(0.0)
+                        total_density[cell_i].append(
+                                self.total_number[cell][self.chain.nuclides[i].name].coeffs[p])
                 else:
                     for p in range(mp):
                         total_density[cell_i].append(0.0)
@@ -571,12 +580,8 @@ class Geometry:
                 # Don't add if zero, for performance reasons.
                 if total_density[cell_i][i*mp] != 0.0:
                     nuc = self.chain.nuclides[i].name
-                    # Add a "infinitely dilute" quantity if negative
-                    # TODO: DEBUG
-                    if total_density[cell_i][i*mp] > 0.0:
-                        self.total_number[cell][nuc] = total_density[cell_i][i * mp]
-                    else:
-                        self.total_number[cell][nuc] = 1.0e5
+                    for p in range(mp):
+                        self.total_number[cell][nuc].coeffs[p] = total_density[cell_i][i * mp + p]
 
             cell_i += 1
 
@@ -680,7 +685,8 @@ class Geometry:
                         fet.remove_fet_sqrt_normalization()
 
                         # Scale the FET microrate from barn x cm to cm^3
-                        fet.scale_coefficients( self.number_density[cell][nuc] * 1e-24 / self.total_number[cell][nuc])
+                        # ???
+                        fet.scale_coefficients( self.number_density[cell][nuc].coeffs[0] * 1e-24 / self.total_number[cell][nuc].coeffs[0])
 
                         # Store the FET and reaction rates values
                         self.reaction_rates.set_fet([cell_str,nuclide.name,k], fet)
@@ -692,7 +698,7 @@ class Geometry:
                         # The reaction rates are normalized to total number of
                         # atoms in the simulation.
                         self.reaction_rates[cell_str, nuclide.name, k, 0] = value \
-                            / self.total_number[cell][nuc]
+                            / self.total_number[cell][nuc].coeffs[0]
 
                     # Calculate power if fission
                     if settings.fet_order == None and tally_type == "fission":
@@ -703,7 +709,7 @@ class Geometry:
                             self.power[cell] += power
                     elif tally_type == "fission":
                         value = df_nuclide[df_nuclide["score"] ==
-                                           fet_tally_type]["mean"].values[0] * 1e-24 * self.number_density[cell][nuc]
+                                           fet_tally_type]["mean"].values[0] * 1e-24 * self.number_density[cell][nuc].coeffs[0]
                         power = value * nuclide.fission_power
                         if cell not in self.power:
                             self.power[cell] = power

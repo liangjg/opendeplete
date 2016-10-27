@@ -4,6 +4,7 @@ Just contains a dictionary of np.arrays to store nuclide concentrations.
 """
 
 import numpy as np
+import zernike
 
 
 class Concentrations:
@@ -32,6 +33,7 @@ class Concentrations:
 
         self.n_cell = None
         self.n_nuc = None
+        self.n_zern = None
 
         self.number = None
 
@@ -52,9 +54,15 @@ class Concentrations:
         # First, find a complete set of nuclides
         unique_nuc = set()
 
+
+        n_zern = 1
         for cell_id in nested_dict:
             for nuc in nested_dict[cell_id]:
                 unique_nuc.add(nuc)
+                if type(nested_dict[cell_id][nuc]) is zernike.ZernikePolynomial:
+                    n = len(nested_dict[cell_id][nuc].coeffs)
+                    if n > n_zern:
+                        n_zern = n
 
         # Now, form cell_to_ind, nuc_to_ind
         self.cell_to_ind = {}
@@ -63,6 +71,7 @@ class Concentrations:
         cell_ind = 0
         for cell_id in nested_dict:
             self.cell_to_ind[str(cell_id)] = cell_ind
+            
             cell_ind += 1
 
         nuc_ind = 0
@@ -73,9 +82,10 @@ class Concentrations:
         # Set lengths
         self.n_cell = len(self.cell_to_ind)
         self.n_nuc = len(self.nuc_to_ind)
+        self.n_zern = n_zern
 
         # Allocate arrays
-        self.number = np.zeros((self.n_cell, self.n_nuc))
+        self.number = np.zeros((self.n_cell, self.n_nuc, self.n_zern))
 
         # Extract data
         for cell_id in nested_dict:
@@ -83,7 +93,10 @@ class Concentrations:
                 cell_ind = self.cell_to_ind[str(cell_id)]
                 nuc_ind = self.nuc_to_ind[nuc]
 
-                self.number[cell_ind, nuc_ind] = nested_dict[cell_id][nuc]
+                if type(nested_dict[cell_id][nuc]) is zernike.ZernikePolynomial:
+                    self.number[cell_ind, nuc_ind, :] = nested_dict[cell_id][nuc].coeffs
+                else:
+                    self.number[cell_ind, nuc_ind, 0] = nested_dict[cell_id][nuc]
 
     def __getitem__(self, pos):
         """ Retrieves an item from concentrations.

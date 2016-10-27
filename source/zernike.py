@@ -6,6 +6,7 @@ Utility class for zernike polynomials
 import numpy as np
 from math import pi
 import numpy as np
+import copy
 from zerndata import b_matrix, c_matrix
 
 def num_poly(n):
@@ -24,6 +25,14 @@ def form_b_matrix(p, pp, rate):
 
     v1 = b_matrix[p,pp,0:order]
     return np.dot(v1, rate)/c_matrix[pp]
+
+def flat_to_zern(val, order, radius):
+    # Get number of unknowns
+    n = num_poly(order)
+    coeffs = np.zeros(n)
+    coeffs[0] = val
+
+    return ZernikePolynomial(order, coeffs, radial_norm=radius, sqrt_normed=False)
 
 class ZernikePolynomial:
     ''' ZernikePolynomial class
@@ -59,6 +68,26 @@ class ZernikePolynomial:
         self._n_coeffs = int(1/2 * (order+1) * (order+2))
         self._sqrt_normed = sqrt_normed
         self._p_coeffs = self.precompute_zn_coeffs()
+
+    def __mul__(self, other):
+        new = copy.deepcopy(self)
+        new.coeffs *= other
+        return new
+
+    def __rmul__(self, other):
+        new = copy.deepcopy(self)
+        new.coeffs *= other
+        return new
+
+    def __div__(self, other):
+        new = copy.deepcopy(self)
+        new.coeffs /= other
+        return new
+    
+    def __truediv__(self, other):
+        new = copy.deepcopy(self)
+        new.coeffs /= other
+        return new
         
     @property
     def order(self):
@@ -407,3 +436,28 @@ class ZernikePolynomial:
                 math.pow(-1,s) * math.factorial(n-s) / \
                 ( math.factorial(s) * math.factorial((n+m)//2 - s) * \
                   math.factorial( (n-m)//2 - s) ) )
+
+    def openmc_form(self, radial_only=True):
+        ''' This function returns the openmc poly_coeffs vector, which is
+        radius followed by coefficients in barn/cm.
+
+        Parameters
+        ----------
+        radial_only : bool
+            Whether only Z_{n,0} terms are returned.
+        
+        '''
+
+        if radial_only:
+            n = int((self.order + 2)/2)
+            form = np.zeros(n + 1)
+            form[0] = self.radial_norm
+            for i in range(n):
+                form[i+1] = self.coeffs[zern_to_ind(2*i, 0)] / 1.0e24
+            return form
+        else:
+            n = len(self.coeffs)
+            form = np.zeros(n + 1)
+            form[0] = self.radial_norm
+            form[1::] = self.coeffs
+            return form

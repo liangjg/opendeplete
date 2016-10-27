@@ -44,22 +44,18 @@ def predictor(op):
     # Generate initial conditions
     vec = op.start()
 
+    print(vec[0])
+
     time = 0.0
     ind = 0
 
     for dt in op.settings.dt_vec:
         # Evaluate function at vec to get mat
         mat, eigvl, r1, seed = op.eval(vec)
-        print(mat[0])
-        plt.spy(mat[0])
-        plt.show()
-        print(ssla.eig(mat[0].toarray()))
         write_results(op, eigvl, [vec], [r1], [1], [seed], time, ind)
 
         # Update vec with the integrator.
         vec = matexp(mat, vec, dt)
-        print(vec[0])
-        dfafdsa()
         time += dt
         ind += 1
 

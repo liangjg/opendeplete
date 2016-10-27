@@ -10,10 +10,16 @@ import openmc
 import openmc_wrapper
 import numpy as np
 import math
+import zernike
 from collections import OrderedDict
 
+def zernike_dict(flat_dict, order, radius):
+    z_dict = OrderedDict()
+    for key in flat_dict:
+        z_dict[key] = zernike.flat_to_zern(flat_dict[key], order, radius)
+    return z_dict
 
-def generate_initial_number_density():
+def generate_initial_number_density(order, radius):
     """ Generates initial number density.
 
     These results were from a CASMO5 run in which the gadolinium pin was
@@ -35,6 +41,8 @@ def generate_initial_number_density():
     fuel_dict['Gd-157'] = 1.0e10
     # fuel_dict['O-18'] = 9.51352e19 # Does not exist in ENDF71, merged into 17
 
+    fuel_dict = zernike_dict(fuel_dict, order, radius)
+
     # Concentration to be used for the gadolinium fuel pin
     fuel_gd_dict = OrderedDict()
     fuel_gd_dict['U-235'] = 1.03579e21
@@ -42,11 +50,13 @@ def generate_initial_number_density():
     fuel_gd_dict['Gd-156'] = 3.95517E+10
     fuel_gd_dict['Gd-157'] = 1.08156e20
     fuel_gd_dict['O-16'] = 4.64035e22
-    fuel_dict['I-135'] = 1.0e10
-    fuel_dict['Xe-136'] = 1.0e10
-    fuel_dict['Xe-135'] = 1.0e10
-    fuel_dict['Cs-135'] = 1.0e10
+    fuel_gd_dict['I-135'] = 1.0e10
+    fuel_gd_dict['Xe-136'] = 1.0e10
+    fuel_gd_dict['Xe-135'] = 1.0e10
+    fuel_gd_dict['Cs-135'] = 1.0e10
     # There are a whole bunch of 1e-10 stuff here.
+
+    fuel_gd_dict = zernike_dict(fuel_gd_dict, order, radius)
 
     # Concentration to be used for cladding
     clad_dict = OrderedDict()
