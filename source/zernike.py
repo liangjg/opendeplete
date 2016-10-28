@@ -500,8 +500,8 @@ class ZernikePolynomial:
             for m in range(-n,(n+1),2):
                 i = zern_to_ind(n,m)
                 if m == 0:
-                    normalization = 2 / (2*n + 1)
+                    normalization = 1 / (n + 1)
                 else:
-                    normalization = 1 / (2*n + 1)
+                    normalization = 1 / (2*n + 2)
                 val += self.coeffs[i] * other[i] * normalization
         return val

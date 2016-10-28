@@ -107,6 +107,9 @@ def MCNPX(op):
         zer = op.total_number[10000]["Xe-135"]
         zer.plot_disk(20, 32, str(ind) + ".pdf")
 
+        test = mat[0].dot(vec[0])
+        print(test)
+
         # Step a half timestep
         v1 = matexp(mat, vec, dt/2)
 

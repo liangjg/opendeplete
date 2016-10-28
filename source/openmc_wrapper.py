@@ -416,7 +416,7 @@ class Geometry:
             # Add the geomtric norm to tally if we are doing FETs
             # TODO we need geometry constants in another PYTHON file for easy use
             tally_dep.add_geom_norm(0.412275)
-            tally_dep.estimator = 'analog'
+            tally_dep.estimator = 'collision'
             # The current implementation does not allow multiple score pins for FETs
             # Therefore, we need a unique tally for each reaction
             fet_tallies = []
@@ -663,6 +663,7 @@ class Geometry:
                     # the tally number will vary based on reaction
                     if (settings.fet_order != None):
                         print('Getting tally ' + str(k+1))
+                        print(cell, nuc)
                         tally_dep = statepoint.get_tally(id=k+1)
                         fet_tally_type = 'micro-' + nuclide.reaction_type[j] + '-zn'
                         
@@ -711,8 +712,10 @@ class Geometry:
                             self.power[cell] += power
                     elif tally_type == "fission":
 
-                        value = self.number_density[cell][nuc].product_integrate(df_nuclide[df_nuclide["score"] ==
-                                           fet_tally_type]["mean"].values * 1e-24)
+                        #~ value = self.number_density[cell][nuc].product_integrate(df_nuclide[df_nuclide["score"] ==
+                                           #~ fet_tally_type]["mean"].values * 1e-24)
+                        value = self.number_density[cell][nuc].coeffs[0] * 1e-24 * df_nuclide[df_nuclide["score"] ==
+                                           fet_tally_type]["mean"].values[0]
                         power = value * nuclide.fission_power
                         if cell not in self.power:
                             self.power[cell] = power
@@ -722,6 +725,8 @@ class Geometry:
         # ---------------------------------------------------------------------
         # Normalize to power
         original_power = sum(self.power.values())
+
+        print("ORIGINAL POWER!!!! ,", original_power)
 
         self.reaction_rates[:, :, :, :] *= (settings.power / original_power)
 
