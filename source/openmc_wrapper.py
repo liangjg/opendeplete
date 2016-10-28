@@ -310,6 +310,7 @@ class Geometry:
                     if type(self.number_density[key_mat][key_nuc]) is zernike.ZernikePolynomial:
                         
                         nuc.poly_coeffs = self.number_density[key_mat][key_nuc].openmc_form()
+                        nuc.poly_type = 'zernike1d'
                         mat[i].add_nuclide(nuc,
                                            self.number_density[key_mat][key_nuc].coeffs[0])
                         total += self.number_density[key_mat][key_nuc].coeffs[0]
@@ -483,6 +484,7 @@ class Geometry:
             nuc = openmc.Nuclide(key)
             if type(self.number_density[m_id][key]) is zernike.ZernikePolynomial:
                 nuc.poly_coeffs = self.number_density[m_id][key].openmc_form()
+                nuc.poly_type = 'zernike1d'
                 mat.add_nuclide(nuc, self.number_density[m_id][key].coeffs[0])
                 total += self.number_density[m_id][key].coeffs[0]
             else:
