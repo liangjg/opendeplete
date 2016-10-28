@@ -17,6 +17,7 @@ import copy
 from matplotlib import pyplot as plt
 import math
 import concurrent.futures
+import zernike
 
 
 def predictor(op):
@@ -102,6 +103,10 @@ def MCNPX(op):
         # Evaluate function at vec to get mat
         mat, eigvl, r1, s1 = op.eval(vec)
 
+        # Plot current vec
+        zer = op.total_number[10000]["Xe-135"]
+        zer.plot_disk(20, 32, str(ind) + ".pdf")
+
         # Step a half timestep
         v1 = matexp(mat, vec, dt/2)
 
@@ -110,6 +115,7 @@ def MCNPX(op):
 
         write_results(op, eigvl, [vec, v1], [r1, r2],
                       [0, 1], [s1, s2], time, ind)
+
 
         # Step a full timestep
         vec = matexp(mat, vec, dt)

@@ -352,6 +352,24 @@ class ZernikePolynomial:
         # to recompute the precomputed polynomial coefficients
         self._p_coeffs = self.precompute_zn_coeffs()
 
+    def apply_fet_sqrt_normalization(self):
+        ''' This function applies the sqrt(2(n+1)) or sqrt(n+1)
+        normalization that is applied in OpenMC FETs.
+        '''
+        import math
+
+        for n in range(0, self.order+1):
+            for m in range(-n,(n+1),2):
+                if (m == 0):
+                    self.coeffs[self.order_to_index(n,m)] /= math.sqrt(n+1.0)
+                else:
+                    self.coeffs[self.order_to_index(n,m)] /= math.sqrt(2.0*n+2.0)
+
+        self.sqrt_normed = True
+        # Since we might have changed the normalization state, we need
+        # to recompute the precomputed polynomial coefficients
+        self._p_coeffs = self.precompute_zn_coeffs()
+
     def normalize_coefficients(self):
         ''' This function normalizes coefficients by (n+1) / pi or
         (2n+2) / pi.
@@ -448,16 +466,42 @@ class ZernikePolynomial:
         
         '''
 
+        self.apply_fet_sqrt_normalization()
+
         if radial_only:
             n = int((self.order + 2)/2)
             form = np.zeros(n + 1)
             form[0] = self.radial_norm
             for i in range(n):
                 form[i+1] = self.coeffs[zern_to_ind(2*i, 0)] / 1.0e24
-            return form
         else:
             n = len(self.coeffs)
             form = np.zeros(n + 1)
             form[0] = self.radial_norm
-            form[1::] = self.coeffs
-            return form
+            form[1::] = self.coeffs / 1.0e24
+        
+        self.remove_fet_sqrt_normalization()
+        return form
+
+    def product_integrate(self, other):
+        ''' This function returns the openmc poly_coeffs vector, which is
+        radius followed by coefficients in barn/cm.
+
+        Parameters
+        ----------
+        radial_only : bool
+            Whether only Z_{n,0} terms are returned.
+        
+        '''
+
+        val = 0.0
+
+        for n in range(0, self.order+1):
+            for m in range(-n,(n+1),2):
+                i = zern_to_ind(n,m)
+                if m == 0:
+                    normalization = 2 / (2*n + 1)
+                else:
+                    normalization = 1 / (2*n + 1)
+                val += self.coeffs[i] * other[i] * normalization
+        return val

@@ -310,6 +310,7 @@ class Geometry:
                     if type(self.number_density[key_mat][key_nuc]) is zernike.ZernikePolynomial:
                         
                         nuc.poly_coeffs = self.number_density[key_mat][key_nuc].openmc_form()
+                        nuc.poly_type = "zernike1d"
                         mat[i].add_nuclide(nuc,
                                            self.number_density[key_mat][key_nuc].coeffs[0])
                         total += self.number_density[key_mat][key_nuc].coeffs[0]
@@ -483,6 +484,7 @@ class Geometry:
             nuc = openmc.Nuclide(key)
             if type(self.number_density[m_id][key]) is zernike.ZernikePolynomial:
                 nuc.poly_coeffs = self.number_density[m_id][key].openmc_form()
+                nuc.poly_type = "zernike1d"
                 mat.add_nuclide(nuc, self.number_density[m_id][key].coeffs[0])
                 total += self.number_density[m_id][key].coeffs[0]
             else:
@@ -708,8 +710,9 @@ class Geometry:
                         else:
                             self.power[cell] += power
                     elif tally_type == "fission":
-                        value = df_nuclide[df_nuclide["score"] ==
-                                           fet_tally_type]["mean"].values[0] * 1e-24 * self.number_density[cell][nuc].coeffs[0]
+
+                        value = self.number_density[cell][nuc].product_integrate(df_nuclide[df_nuclide["score"] ==
+                                           fet_tally_type]["mean"].values * 1e-24)
                         power = value * nuclide.fission_power
                         if cell not in self.power:
                             self.power[cell] = power
