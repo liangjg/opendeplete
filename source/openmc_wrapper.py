@@ -309,8 +309,8 @@ class Geometry:
                                          xs=self.materials.library[mat_name])
                     if type(self.number_density[key_mat][key_nuc]) is zernike.ZernikePolynomial:
                         
-                        nuc.poly_coeffs = self.number_density[key_mat][key_nuc].openmc_form()
-                        nuc.poly_type = "zernike1d"
+                        nuc.poly_coeffs = self.number_density[key_mat][key_nuc].openmc_form(radial_only=False)
+                        nuc.poly_type = "zernike"
                         mat[i].add_nuclide(nuc,
                                            self.number_density[key_mat][key_nuc].coeffs[0])
                         total += self.number_density[key_mat][key_nuc].coeffs[0]
@@ -483,8 +483,8 @@ class Geometry:
         for key in self.number_density[m_id]:
             nuc = openmc.Nuclide(key)
             if type(self.number_density[m_id][key]) is zernike.ZernikePolynomial:
-                nuc.poly_coeffs = self.number_density[m_id][key].openmc_form()
-                nuc.poly_type = "zernike1d"
+                nuc.poly_coeffs = self.number_density[m_id][key].openmc_form(radial_only=False)
+                nuc.poly_type = "zernike"
                 mat.add_nuclide(nuc, self.number_density[m_id][key].coeffs[0])
                 total += self.number_density[m_id][key].coeffs[0]
             else:

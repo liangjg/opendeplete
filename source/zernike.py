@@ -494,14 +494,9 @@ class ZernikePolynomial:
         
         '''
 
-        val = 0.0
+        self.apply_fet_sqrt_normalization()
+        
+        val = np.linalg.dot(self.coeffs, other)
 
-        for n in range(0, self.order+1):
-            for m in range(-n,(n+1),2):
-                i = zern_to_ind(n,m)
-                if m == 0:
-                    normalization = 1 / (n + 1)
-                else:
-                    normalization = 1 / (2*n + 2)
-                val += self.coeffs[i] * other[i] * normalization
+        self.remove_fet_sqrt_normalization()
         return val

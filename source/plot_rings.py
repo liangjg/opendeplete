@@ -10,16 +10,16 @@ n_rings = 20
 n_radial = 32
 
 cells = [x for x in range(10000,10000 + n_rings * n_radial,1)]
-nuclides = ["Gd-157"]
+nuclides = ["Xe-135"]
 
 print(cells)
 
-x1,y1 = utilities.get_atoms("/home/cjosey/code/opendeplete/source/test", cells, nuclides)
+x1,y1 = utilities.get_atoms("/home/cjosey/code/opendeplete/source/test_halfmonth", cells, nuclides)
 
 y = np.zeros(n_rings * n_radial)
 
 for yv in y1:
-    y[yv - 10000] = y1[yv]["Gd-157"][1]
+    y[yv - 10000] = y1[yv]["Xe-135"][3]
 
 # Calculate radii
 
@@ -41,7 +41,7 @@ print(r_rings)
 
 codes = [Path.MOVETO, Path.MOVETO, Path.MOVETO, Path.MOVETO, Path.CLOSEPOLY]
 
-y = y / (v_ring) * n_radial
+y = y / (v_ring) * n_radial / (0.412275**2)
 
 minv = min(y)
 maxv = max(y)
