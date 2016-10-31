@@ -7,7 +7,7 @@ import openmc_wrapper
 import example_geometry
 import integrator
 
-order = 2
+order = 10
 
 # Load geometry from example
 geometry, volume = example_geometry.generate_geometry()

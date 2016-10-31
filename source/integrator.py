@@ -104,11 +104,8 @@ def MCNPX(op):
         mat, eigvl, r1, s1 = op.eval(vec)
 
         # Plot current vec
-        zer = op.total_number[10000]["Xe-135"]
+        zer = op.total_number[10000]["Xe-135"] * 20 * 32 / (np.pi * 0.412275**2) / np.pi
         zer.plot_disk(20, 32, str(ind) + ".pdf")
-
-        test = mat[0].dot(vec[0])
-        print(test)
 
         # Step a half timestep
         v1 = matexp(mat, vec, dt/2)

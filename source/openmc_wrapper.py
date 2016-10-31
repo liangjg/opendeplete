@@ -712,10 +712,10 @@ class Geometry:
                             self.power[cell] += power
                     elif tally_type == "fission":
 
-                        #~ value = self.number_density[cell][nuc].product_integrate(df_nuclide[df_nuclide["score"] ==
-                                           #~ fet_tally_type]["mean"].values * 1e-24)
-                        value = self.number_density[cell][nuc].coeffs[0] * 1e-24 * df_nuclide[df_nuclide["score"] ==
-                                           fet_tally_type]["mean"].values[0]
+                        value = self.number_density[cell][nuc].product_integrate(df_nuclide[df_nuclide["score"] ==
+                                           fet_tally_type]["mean"].values * 1e-24)
+                        #~ value = self.number_density[cell][nuc].coeffs[0] * 1e-24 * df_nuclide[df_nuclide["score"] ==
+                                           #~ fet_tally_type]["mean"].values[0]
                         power = value * nuclide.fission_power
                         if cell not in self.power:
                             self.power[cell] = power
