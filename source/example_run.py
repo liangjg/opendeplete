@@ -38,6 +38,7 @@ settings.batches = 100
 settings.inactive = 40
 
 settings.power = 2.337e15*4/9  # MeV/second cm from CASMO
+#~ settings.power = 0.00001
 settings.dt_vec = dt
 settings.output_dir = 'test_2month'
 settings.fet_order = order
@@ -46,4 +47,4 @@ op = function.Operator()
 op.initialize(geometry, volume, materials, settings)
 
 # Perform simulation using the MCNPX/MCNP6 algorithm
-integrator.predictor(op)
+integrator.MCNPX(op)
