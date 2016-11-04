@@ -7,6 +7,7 @@ import numpy as np
 from math import pi
 import numpy as np
 import copy
+from scipy.optimize import differential_evolution
 from zerndata import b_matrix, c_matrix
 
 def num_poly(n):
@@ -287,17 +288,17 @@ class ZernikePolynomial:
                 if(j == n_sectors-1):  # Loop around the sectors
                     patch_vals.append(self.compute_integral(ring_radii[i]/self.radial_norm, ring_radii[i+1]/self.radial_norm,\
                                                             theta_cuts[j], 2*math.pi))
-                    wedge = Wedge( (0.0,0.0), ring_radii[i+1], theta_cuts[j]*180.0/math.pi, theta_cuts[0]*180.0/math.pi, width=thickness)
+                    wedge = Wedge( (0.0,0.0), ring_radii[i+1], theta_cuts[j]*180.0/math.pi, theta_cuts[0]*180.0/math.pi, width=thickness, linewidth=None)
                 else:
                     patch_vals.append(self.compute_integral(ring_radii[i]/self.radial_norm, ring_radii[i+1]/self.radial_norm,\
                                                             theta_cuts[j], theta_cuts[j+1]))
-                    wedge = Wedge( (0.0,0.0), ring_radii[i+1], theta_cuts[j]*180.0/math.pi, theta_cuts[j+1]*180.0/math.pi, width=thickness)
+                    wedge = Wedge( (0.0,0.0), ring_radii[i+1], theta_cuts[j]*180.0/math.pi, theta_cuts[j+1]*180.0/math.pi, width=thickness, linewidth=None)
                 patches.append(wedge)
                 
         fig, ax = plt.subplots()
         ax.set_xlim([-self.radial_norm,self.radial_norm])
         ax.set_ylim([-self.radial_norm,self.radial_norm])
-        p = PatchCollection(patches, cmap=plt.cm.jet)
+        p = PatchCollection(patches, cmap=plt.cm.jet, linewidths=0.0)
         p.set_array(numpy.array(patch_vals))
         ax.add_collection(p)
         plt.colorbar(p)
@@ -466,6 +467,7 @@ class ZernikePolynomial:
         
         '''
 
+        self.force_positive()
         self.apply_fet_sqrt_normalization()
 
         if radial_only:
@@ -484,19 +486,41 @@ class ZernikePolynomial:
         return form
 
     def product_integrate(self, other):
-        ''' This function returns the openmc poly_coeffs vector, which is
-        radius followed by coefficients in barn/cm.
+        ''' Integrates over the unit disk the convolution of two polynomials.
+
+        If both polynomials are normalized (it is assumed that "other" is, as it
+        is simply a tally from OpenMC), then the integral is the dot product of
+        the vectors.
 
         Parameters
         ----------
-        radial_only : bool
-            Whether only Z_{n,0} terms are returned.
+        other : np.array(float)
+            The second polynomial, normalized.
         
         '''
 
         self.apply_fet_sqrt_normalization()
         
-        val = np.linalg.dot(self.coeffs, other)
+        val = np.dot(self.coeffs, other)
 
         self.remove_fet_sqrt_normalization()
         return val
+
+    def force_positive(self):
+        ''' Computes the minimum of the function, and then shifts all but the
+        first moment by a scaling parameter to guarantee positivity.
+        '''
+
+        fun = lambda x: self.get_poly_value(x[0], x[1])
+
+        result = differential_evolution(fun, [(0.0, 1.0), (0.0, np.pi*2)], tol=1.0e-6, popsize=100)
+
+        y = result.fun
+
+        fudge_factor = 1.0e-7
+
+        if y < 0.0:
+            scaling = self.coeffs[0] / (self.coeffs[0] - y) / (1.0 + fudge_factor)
+            self.coeffs[1::] = self.coeffs[1::] * scaling
+
+        
