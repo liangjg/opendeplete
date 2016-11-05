@@ -309,8 +309,9 @@ class Geometry:
                                          xs=self.materials.library[mat_name])
                     if type(self.number_density[key_mat][key_nuc]) is zernike.ZernikePolynomial:
                         
-                        nuc.poly_coeffs = self.number_density[key_mat][key_nuc].openmc_form()
-                        nuc.poly_type = 'zernike1d'
+                        nuc.poly_coeffs = self.number_density[key_mat][key_nuc].openmc_form(radial_only=False)
+                        nuc.poly_type = "zernike"
+
                         mat[i].add_nuclide(nuc,
                                            self.number_density[key_mat][key_nuc].coeffs[0])
                         total += self.number_density[key_mat][key_nuc].coeffs[0]
@@ -483,8 +484,8 @@ class Geometry:
         for key in self.number_density[m_id]:
             nuc = openmc.Nuclide(key)
             if type(self.number_density[m_id][key]) is zernike.ZernikePolynomial:
-                nuc.poly_coeffs = self.number_density[m_id][key].openmc_form()
-                nuc.poly_type = "zernike1d"
+                nuc.poly_coeffs = self.number_density[m_id][key].openmc_form(radial_only=False)
+                nuc.poly_type = "zernike"
                 mat.add_nuclide(nuc, self.number_density[m_id][key].coeffs[0])
                 total += self.number_density[m_id][key].coeffs[0]
             else:
@@ -712,10 +713,10 @@ class Geometry:
                             self.power[cell] += power
                     elif tally_type == "fission":
 
-                        #~ value = self.number_density[cell][nuc].product_integrate(df_nuclide[df_nuclide["score"] ==
-                                           #~ fet_tally_type]["mean"].values * 1e-24)
-                        value = self.number_density[cell][nuc].coeffs[0] * 1e-24 * df_nuclide[df_nuclide["score"] ==
-                                           fet_tally_type]["mean"].values[0]
+                        value = self.number_density[cell][nuc].product_integrate(df_nuclide[df_nuclide["score"] ==
+                                           fet_tally_type]["mean"].values * 1e-24)
+                        #~ value = self.number_density[cell][nuc].coeffs[0] * 1e-24 * df_nuclide[df_nuclide["score"] ==
+                                           #~ fet_tally_type]["mean"].values[0]
                         power = value * nuclide.fission_power
                         if cell not in self.power:
                             self.power[cell] = power

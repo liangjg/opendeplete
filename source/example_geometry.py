@@ -41,7 +41,7 @@ def generate_initial_number_density(order, radius):
     fuel_dict['Gd-157'] = 1.0e10
     # fuel_dict['O-18'] = 9.51352e19 # Does not exist in ENDF71, merged into 17
 
-    fuel_dict = zernike_dict(fuel_dict, order, radius)
+    #~ fuel_dict = zernike_dict(fuel_dict, order, radius)
 
     # Concentration to be used for the gadolinium fuel pin
     fuel_gd_dict = OrderedDict()
