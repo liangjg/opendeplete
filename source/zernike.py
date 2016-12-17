@@ -513,7 +513,7 @@ class ZernikePolynomial:
 
         fun = lambda x: self.get_poly_value(x[0], x[1])
 
-        result = differential_evolution(fun, [(0.0, 1.0), (0.0, np.pi*2)], tol=1.0e-6, popsize=100)
+        result = differential_evolution(fun, [(0.0, self.radial_norm), (0.0, np.pi*2)], tol=1.0e-6, popsize=100)
 
         y = result.fun
 
