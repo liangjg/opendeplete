@@ -178,32 +178,71 @@ class ZernikePolynomial:
                  The theta value in radians.
 
         '''
-
         import math
+
+        r = r / self.radial_norm
         
-        p_coeff_num = 0
+        # Determine the vector of sin(n*theta) and cos(n*theta)
+        sin_phi = math.sin(theta)
+        cos_phi = math.cos(theta)
+
+        sin_phi_vec = np.empty(self.order+1)
+        cos_phi_vec = np.empty(self.order+1)
+
+        sin_phi_vec[0] = 1.0
+        cos_phi_vec[0] = 1.0
+
+        sin_phi_vec[1] = 2.0 * cos_phi
+        cos_phi_vec[1] = cos_phi
+
+        for i in range(2,self.order+1):
+            sin_phi_vec[i] = 2.0 * cos_phi * sin_phi_vec[i-1] - sin_phi_vec[i-2]
+            cos_phi_vec[i] = 2.0 * cos_phi * cos_phi_vec[i-1] - cos_phi_vec[i-2]
+
+        sin_phi_vec = sin_phi_vec * sin_phi
+        
+        # Calculate R_m_n(rho)
+
+        zn_mat = np.empty([self.order+1, self.order+1])
+        
+        # Fill out the main diagonal first
+        for p in range(0,self.order+1):
+            zn_mat[p][p] = r**p
+        # Fill in the second diagonal
+        for q in range(0,(self.order-2+1)):
+            zn_mat[q+2][q] = (q+2) * zn_mat[q+2][q+2] - (q+1) * zn_mat[q][q]
+        # Fill in the rest of the values using the original results
+        for p in range(4,(self.order+1)):
+            k2 = float(2 * p * (p - 1) * (p - 2))
+            for q in range(p-4,-1,-2):
+                k1 = float((p + q) * (p - q) * (p - 2.0) / 2.0)
+                k3 = float(-q**2*(p - 1) - p * (p - 1) * (p - 2))
+                k4 = float(-p * (p + q - 2) * (p - q - 2) / 2.0)
+                #print(k1)
+                #print(k2)
+                #print(k3)
+                #print(k4)
+                if (k1 <= 0.0):
+                    print('k1')
+                    print(k1)
+                    print('p')
+                    print(p)
+                    print('q')
+                    print(q)
+                zn_mat[p][q] = ((k2 * r**2 + k3) * zn_mat[p-2][q] + k4 * zn_mat[p-4][q]) / k1
+
         val = 0.0
-
-        for n in range(0,(self.order+1)):
-            for m in range(-n,(n+1)):
-                if ((n-m) % 2 == 0):
-
-                    if( (n-m) % 2 == 0 and m == 0 ):
-                        azim_factor = 1.0
-                    elif ( (n-m) % 2 == 0 and m < 0):
-                        azim_factor = math.sin(abs(m) * theta)
-                    elif ( (n-m) % 2 == 0 and m > 0):
-                        azim_factor = math.cos(m * theta)
-                    else:
-                        print("n = "+str(n)+", m = "+str(m))
-                        print("Invalid value of m and n");
-
-                    for s in range(0,(n-abs(m))//2+1):
-                        val = val + self.coeffs[self.order_to_index(n,m)] * \
-                              self._p_coeffs[p_coeff_num] * \
-                              (r/self.radial_norm)**(int(n-2*s)) * \
-                              azim_factor
-                        p_coeff_num = p_coeff_num + 1
+        i = 0
+        for p in range(0,(self.order+1)):
+            for q in range(-p,p+1,2):
+                norm = self.get_norm_factor(p,q)
+                if(q < 0):
+                    val += zn_mat[p][abs(q)] * sin_phi_vec[p-1] * norm * self.coeffs[i]
+                elif (q == 0):
+                    val += zn_mat[p][q] * norm * self.coeffs[i]
+                else:
+                    val += zn_mat[p][q] * cos_phi_vec[p] * norm * self.coeffs[i]
+                i = i + 1
 
         return val
 
@@ -466,8 +505,11 @@ class ZernikePolynomial:
             Whether only Z_{n,0} terms are returned.
         
         '''
-
+        import time
+        
+        start_time = time.time()
         self.force_positive()
+        print('Force positive execution time' + str(time.time() - start_time))
         self.apply_fet_sqrt_normalization()
 
         if radial_only:
