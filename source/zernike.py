@@ -7,7 +7,7 @@ import numpy as np
 from math import pi
 import numpy as np
 import copy
-from scipy.optimize import differential_evolution
+from scipy.optimize import minimize
 from zerndata import b_matrix, c_matrix
 
 def num_poly(n):
@@ -172,9 +172,9 @@ class ZernikePolynomial:
 
             Parameters
             ----------
-            r : float
+            r : float or np.array
                  The radial point.  Not normalizated.
-            theta : float
+            theta : float or np.array
                  The theta value in radians.
 
         '''
@@ -182,7 +182,12 @@ class ZernikePolynomial:
         import math
         
         p_coeff_num = 0
-        val = 0.0
+        if isinstance(r, (np.ndarray, np.generic)):
+            assert(r.shape == theta.shape)
+
+            val = np.zeros(r.shape)
+        else:
+            val = 0.0
 
         for n in range(0,(self.order+1)):
             for m in range(-n,(n+1)):
@@ -191,15 +196,15 @@ class ZernikePolynomial:
                     if( (n-m) % 2 == 0 and m == 0 ):
                         azim_factor = 1.0
                     elif ( (n-m) % 2 == 0 and m < 0):
-                        azim_factor = math.sin(abs(m) * theta)
+                        azim_factor = np.sin(abs(m) * theta)
                     elif ( (n-m) % 2 == 0 and m > 0):
-                        azim_factor = math.cos(m * theta)
+                        azim_factor = np.cos(m * theta)
                     else:
                         print("n = "+str(n)+", m = "+str(m))
                         print("Invalid value of m and n");
 
                     for s in range(0,(n-abs(m))//2+1):
-                        val = val + self.coeffs[self.order_to_index(n,m)] * \
+                        val += self.coeffs[self.order_to_index(n,m)] * \
                               self._p_coeffs[p_coeff_num] * \
                               (r/self.radial_norm)**(int(n-2*s)) * \
                               azim_factor
@@ -506,22 +511,30 @@ class ZernikePolynomial:
         self.remove_fet_sqrt_normalization()
         return val
 
-    def force_positive(self):
+    def force_positive(self, N=50):
         ''' Computes the minimum of the function, and then shifts all but the
         first moment by a scaling parameter to guarantee positivity.
         '''
 
         fun = lambda x: self.get_poly_value(x[0], x[1])
 
-        result = differential_evolution(fun, [(0.0, self.radial_norm), (0.0, np.pi*2)], tol=1.0e-10, popsize=100)
+        r = np.linspace(0, self.radial_norm, N)
+        theta = np.linspace(0, 2*np.pi, N)
 
-        y = result.fun
+        r, theta = np.meshgrid(r, theta)
 
-        fudge_factor = 1.0e-7
+        val = self.get_poly_value(r, theta)
 
-        if y < fudge_factor*self.coeffs[0]:
+        argmin = np.argmin(val)
+
+        result = minimize(fun, [r.item(argmin), theta.item(argmin)], bounds=((0.0, self.radial_norm), (0.0, 2*np.pi)))
+
+        y = result.fun * self.radial_norm**2
+
+        fudge_factor = 1.0e-6
+
+        if y < fudge_factor * self.coeffs[0]:
             scaling = self.coeffs[0] / (self.coeffs[0] - y) / (1.0 + fudge_factor)
             print("scaling by = ", scaling)
             self.coeffs[1::] = self.coeffs[1::] * scaling
 
-        
