@@ -327,15 +327,23 @@ class ZernikePolynomial:
         '''
         import math
         import sys
-        import numpy
+        from copy import deepcopy
+
+        if(isinstance(r,float)):
+            r_temp = np.empty([1])
+            r_temp[0] = r
+            r = deepcopy(r_temp)
+            theta_temp = np.empty([1])
+            theta_temp[0] = theta
+            theta = deepcopy(theta_temp)
 
         r = r / self.radial_norm
 
         n_points = r.size * theta.size
 
         # Determine the vector of sin(theta) and cos(theta)
-        sin_phi = numpy.sin(theta)
-        cos_phi = numpy.cos(theta)
+        sin_phi = np.sin(theta)
+        cos_phi = np.cos(theta)
 
         # Determine the matrix of sin(n*theta) and cos(n*theta)
         sin_phi_vec = np.ones((self.order+1,theta.size))
