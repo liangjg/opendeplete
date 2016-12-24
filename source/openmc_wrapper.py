@@ -311,6 +311,7 @@ class Geometry:
                         
                         nuc.poly_coeffs = self.number_density[key_mat][key_nuc].openmc_form(radial_only=False)
                         nuc.poly_type = "zernike"
+
                         mat[i].add_nuclide(nuc,
                                            self.number_density[key_mat][key_nuc].coeffs[0])
                         total += self.number_density[key_mat][key_nuc].coeffs[0]
