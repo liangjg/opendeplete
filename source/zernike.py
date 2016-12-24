@@ -694,7 +694,7 @@ class ZernikePolynomial:
         self.remove_fet_sqrt_normalization()
         return val
 
-    def force_positive(self, N=50):
+    def force_positive(self, N=200):
         ''' Computes the minimum of the function, and then shifts all but the
         first moment by a scaling parameter to guarantee positivity.
         '''
@@ -715,7 +715,9 @@ class ZernikePolynomial:
 
         result = minimize(fun, [r.item(argmin), theta.item(argmin)], bounds=((0.0, self.radial_norm), (0.0, 2*np.pi)))
 
-        y = result.fun * self.radial_norm**2
+        print(result)
+
+        y = result.fun
 
         fudge_factor = 1.0e-6
 
