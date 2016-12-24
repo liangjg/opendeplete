@@ -246,6 +246,78 @@ class ZernikePolynomial:
 
         return val
 
+    def get_poly_value_quick(self, r, theta):
+        ''' Compute the value of a polynomial at a point.
+
+            Parameters
+            ----------
+            r : float
+                 The radial point.  Not normalizated.
+            theta : float
+                 The theta value in radians.
+
+        '''
+        import math
+
+        r = r / self.radial_norm
+        
+        # Determine the vector of sin(n*theta) and cos(n*theta)
+        sin_phi = math.sin(theta)
+        cos_phi = math.cos(theta)
+
+        sin_phi_vec = np.empty(self.order+1)
+        cos_phi_vec = np.empty(self.order+1)
+
+        sin_phi_vec[0] = 1.0
+        cos_phi_vec[0] = 1.0
+
+        sin_phi_vec[1] = 2.0 * cos_phi
+        cos_phi_vec[1] = cos_phi
+
+        for i in range(2,self.order+1):
+            sin_phi_vec[i] = 2.0 * cos_phi * sin_phi_vec[i-1] - sin_phi_vec[i-2]
+            cos_phi_vec[i] = 2.0 * cos_phi * cos_phi_vec[i-1] - cos_phi_vec[i-2]
+
+        sin_phi_vec = sin_phi_vec * sin_phi
+        
+        # Calculate R_m_n(rho)
+
+        zn_mat = np.empty([self.order+1, self.order+1])
+        
+        # Fill out the main diagonal first
+        for p in range(0,self.order+1):
+            zn_mat[p][p] = r**p
+        # Fill in the second diagonal
+        for q in range(0,(self.order-2+1)):
+            zn_mat[q+2][q] = (q+2) * zn_mat[q+2][q+2] - (q+1) * zn_mat[q][q]
+        # Fill in the rest of the values using the original results
+        for p in range(4,(self.order+1)):
+            k2 = float(2 * p * (p - 1) * (p - 2))
+            for q in range(p-4,-1,-2):
+                k1 = float((p + q) * (p - q) * (p - 2.0) / 2.0)
+                k3 = float(-q**2*(p - 1) - p * (p - 1) * (p - 2))
+                k4 = float(-p * (p + q - 2) * (p - q - 2) / 2.0)
+                zn_mat[p][q] = ((k2 * r**2 + k3) * zn_mat[p-2][q] + k4 * zn_mat[p-4][q]) / k1
+
+        val = 0.0
+        i = 0
+        for p in range(0,(self.order+1)):
+            for q in range(-p,p+1,2):
+                norm = self.get_norm_factor(p,q)
+                # Get norm factor has a 1/pi term for the norm if self.sqrt_normed == true
+                # We don't want that 1/pi term -- only the sqrt() term
+                if (self.sqrt_normed):
+                    norm = norm * math.pi
+                if(q < 0):
+                    val += zn_mat[p][abs(q)] * sin_phi_vec[p-1] * norm * self.coeffs[i]
+                elif (q == 0):
+                    val += zn_mat[p][q] * norm * self.coeffs[i]
+                else:
+                    val += zn_mat[p][q] * cos_phi_vec[p] * norm * self.coeffs[i]
+                i = i + 1
+
+        return val
+    
     def compute_integral(self, r_min, r_max, theta_min, theta_max):
         ''' Compute the integral of the zernike polynomial over some 
         subset of the unit disk
@@ -553,7 +625,7 @@ class ZernikePolynomial:
         first moment by a scaling parameter to guarantee positivity.
         '''
 
-        fun = lambda x: self.get_poly_value(x[0], x[1])
+        fun = lambda x: self.get_poly_value_quick(x[0], x[1])
 
         result = differential_evolution(fun, [(0.0, self.radial_norm), (0.0, np.pi*2)], tol=1.0e-10, popsize=100)
 
