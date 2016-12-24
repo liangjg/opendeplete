@@ -181,7 +181,7 @@ class ZernikePolynomial:
         import math
 
         r = r / self.radial_norm
-        
+
         # Determine the vector of sin(n*theta) and cos(n*theta)
         sin_phi = math.sin(theta)
         cos_phi = math.cos(theta)
@@ -200,11 +200,11 @@ class ZernikePolynomial:
             cos_phi_vec[i] = 2.0 * cos_phi * cos_phi_vec[i-1] - cos_phi_vec[i-2]
 
         sin_phi_vec = sin_phi_vec * sin_phi
-        
+
         # Calculate R_m_n(rho)
 
         zn_mat = np.empty([self.order+1, self.order+1])
-        
+
         # Fill out the main diagonal first
         for p in range(0,self.order+1):
             zn_mat[p][p] = r**p
@@ -218,10 +218,6 @@ class ZernikePolynomial:
                 k1 = float((p + q) * (p - q) * (p - 2.0) / 2.0)
                 k3 = float(-q**2*(p - 1) - p * (p - 1) * (p - 2))
                 k4 = float(-p * (p + q - 2) * (p - q - 2) / 2.0)
-                #print(k1)
-                #print(k2)
-                #print(k3)
-                #print(k4)
                 if (k1 <= 0.0):
                     print('k1')
                     print(k1)
@@ -300,6 +296,83 @@ class ZernikePolynomial:
                 zn_mat[p][q] = ((k2 * r**2 + k3) * zn_mat[p-2][q] + k4 * zn_mat[p-4][q]) / k1
 
         val = 0.0
+        i = 0
+        for p in range(0,(self.order+1)):
+            for q in range(-p,p+1,2):
+                norm = self.get_norm_factor(p,q)
+                # Get norm factor has a 1/pi term for the norm if self.sqrt_normed == true
+                # We don't want that 1/pi term -- only the sqrt() term
+                if (self.sqrt_normed):
+                    norm = norm * math.pi
+                if(q < 0):
+                    val += zn_mat[p][abs(q)] * sin_phi_vec[p-1] * norm * self.coeffs[i]
+                elif (q == 0):
+                    val += zn_mat[p][q] * norm * self.coeffs[i]
+                else:
+                    val += zn_mat[p][q] * cos_phi_vec[p] * norm * self.coeffs[i]
+                i = i + 1
+
+        return val
+
+    def get_poly_value_quick_vec(self, r, theta):
+        ''' Compute the value of a polynomial at a point.
+
+            Parameters
+            ----------
+            r : np.array
+                 The radial points.  Not normalizated.
+            theta : np.array
+                 The theta values in radians.
+
+        '''
+        import math
+        import sys
+        import numpy
+
+        r = r / self.radial_norm
+
+        n_points = r.size * theta.size
+
+        # Determine the vector of sin(theta) and cos(theta)
+        sin_phi = numpy.sin(theta)
+        cos_phi = numpy.cos(theta)
+
+        # Determine the matrix of sin(n*theta) and cos(n*theta)
+        sin_phi_vec = np.ones((self.order+1,theta.size))
+        cos_phi_vec = np.ones((self.order+1,theta.size))
+
+        sin_phi_vec[1] = 2.0 * cos_phi
+        cos_phi_vec[1] = cos_phi
+
+        for i in range(2,self.order+1):
+            sin_phi_vec[i] = 2.0 * cos_phi * sin_phi_vec[i-1] - sin_phi_vec[i-2]
+            cos_phi_vec[i] = 2.0 * cos_phi * cos_phi_vec[i-1] - cos_phi_vec[i-2]
+
+        sin_phi_vec = sin_phi_vec * sin_phi
+
+        # Calculate R_m_n(rho)
+        zn_mat = np.zeros([self.order+1, self.order+1,r.size])
+
+        # Fill out the main diagonal first
+        for p in range(0,self.order+1):
+            p_pow = r**p
+            for ii in range(0,p_pow.size):
+                zn_mat[p][p] = p_pow
+
+        # Fill in the second diagonal
+        for q in range(0,(self.order-2+1)):
+            zn_mat[q+2][q] = (q+2) * zn_mat[q+2][q+2] - (q+1) * zn_mat[q][q]
+
+        # Fill in the rest of the values using the original results
+        for p in range(4,(self.order+1)):
+            k2 = float(2 * p * (p - 1) * (p - 2))
+            for q in range(p-4,-1,-2):
+                k1 = float((p + q) * (p - q) * (p - 2.0) / 2.0)
+                k3 = float(-q**2*(p - 1) - p * (p - 1) * (p - 2))
+                k4 = float(-p * (p + q - 2) * (p - q - 2) / 2.0)
+                zn_mat[p][q] = ((k2 * r**2 + k3) * zn_mat[p-2][q] + k4 * zn_mat[p-4][q]) / k1
+
+        val = np.zeros(r.size)
         i = 0
         for p in range(0,(self.order+1)):
             for q in range(-p,p+1,2):
