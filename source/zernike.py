@@ -513,14 +513,17 @@ class ZernikePolynomial:
 
         fun = lambda x: self.get_poly_value(x[0], x[1])
 
-        result = differential_evolution(fun, [(0.0, 1.0), (0.0, np.pi*2)], tol=1.0e-6, popsize=100)
+        result = differential_evolution(fun, [(0.0, self.radial_norm), (0.0, np.pi*2)], tol=1.0e-6, popsize=100)
 
-        y = result.fun
+        y = result.fun * self.radial_norm**2
 
         fudge_factor = 1.0e-7
 
-        if y < 0.0:
+        print(y, self.coeffs[0], fun([0.0, 0.0]))
+
+        if y < fudge_factor*self.coeffs[0]:
             scaling = self.coeffs[0] / (self.coeffs[0] - y) / (1.0 + fudge_factor)
+            print("here we scale = ", scaling)
             self.coeffs[1::] = self.coeffs[1::] * scaling
 
         

@@ -2,18 +2,28 @@ import results
 import zernike
 import numpy as np
 
-order = 6
+order = 10
 
-r = results.read_results("test_10_order/step1.pklz")
+rings = 20
+wedges = 32
 
-#~ con = r.num[0]
+for i in range(31):
+    r = results.read_results("./test_10_order_r/step" + str(i) + ".pklz")
 
-#~ zer = zernike.ZernikePolynomial(order, con["10000", "Xe-135"]  * 20 * 32 / (np.pi * 0.412275**2) / np.pi)
+    con = r.num[0]
 
-#~ zer.plot_disk(20, 32, "test.pdf")
+    #print(r.k)
 
-rea = r.rates[0]
+    zer = zernike.ZernikePolynomial(order, con["10000", "Xe-135"]  * rings * wedges / (np.pi * 0.412275**2) / np.pi)
 
-zer = rea.get_fet(["10000", "Xe-135", "(n,gamma)"])  * 20 * 32 / (np.pi * 0.412275**2) / np.pi * 1.0e24
+    print(zer.coeffs[0] / (rings * wedges) * np.pi)
 
-zer.plot_disk(100, 80, "test2.pdf")
+    #zer.force_positive()
+
+    # zer.plot_disk(rings, wedges, "testg" + str(i+1) + ".pdf")
+
+    rea = r.rates[0]
+
+    zer = rea.get_fet(["10000", "Xe-135", "(n,gamma)"])  * rings * wedges / (np.pi * 0.412275**2) / np.pi * 1.0e24
+
+    #zer.plot_disk(rings, wedges, "testgr" + str(i+1) + ".pdf")
