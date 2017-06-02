@@ -250,11 +250,11 @@ class OpenMCOperator(Operator):
         volume = self.comm.bcast(volume, root=0)
         self.mat_tally_ind = self.comm.bcast(self.mat_tally_ind, root=0)
 
-        # Extract number densities from the geometry
-        self.extract_number(mat_burn, mat_not_burn, volume, nuc_dict)
-
         # Load participating nuclides
         self.load_participating()
+
+        # Extract number densities from the geometry
+        self.extract_number(mat_burn, mat_not_burn, volume, nuc_dict)
 
         # Create reaction rate tables
         self.initialize_reaction_rates()
@@ -398,6 +398,11 @@ class OpenMCOperator(Operator):
         n_nuc_burn = len(self.chain.nuclide_dict)
 
         self.number = AtomNumber(mat_dict, nuc_dict, volume, n_mat_burn, n_nuc_burn)
+
+        # Set all nuclides in burn list in all cells to nonzero/semi-infinitely-dilute
+        # Ensures that the initial condition is valid
+        for nuc in self.burn_nuc_to_ind:
+            self.number.set_atom_density(np.s_[:], nuc, 1.0e8)
 
         self.materials = [None] * self.number.n_mat
 
