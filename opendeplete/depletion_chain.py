@@ -27,6 +27,7 @@ except ImportError:
 
 from .nuclide import Nuclide, DecayTuple, ReactionTuple
 
+serpent_decay = {"Na23": 0.232,"Cl37": 0.8809,"Sc45": 0.556,"Co59": 0.444,"Ge72": 0.5012,"Ge74": 0.666,"Ge76": 0.4005,"Se76": 0.7409,"Se78": 0.1178,"Se80": 0.8454,"Se82": 0.1402,"Br79": 0.7687,"Br81": 0.0914,"Kr78": 0.9704,"Kr80": 0.6031,"Kr82": 0.333,"Kr84": 0.1839,"Rb85": 0.8791,"Sr84": 0.253,"Sr86": 0.1988,"Y89": 0.9979,"Y90": 0.7496,"Nb93": 0.3101,"Nb94": 0.961,"Mo92": 0.9978,"Rh103": 0.924,"Rh105": 0.904,"Pd106": 0.9527,"Pd108": 0.9779,"Pd110": 0.85,"Ag107": 0.9898,"Ag109": 0.954,"Cd110": 0.9945,"Cd112": 0.8685,"Cd114": 0.8812,"Cd116": 0.666,"In113": 0.4191,"Sn112": 0.7253,"Sn116": 0.9568,"Sn118": 0.9794,"Sn120": 0.9875,"Sn122": 0.0112,"Sn124": 0.0375,"Sn126": 0.3018,"Sb121": 0.9369,"Te120": 0.8871,"Te122": 0.6448,"Te124": 0.9912,"Te126": 0.8689,"Te128": 0.9245,"Te130": 0.8559,"Te132": 0.8517,"I129": 0.413,"I131": 0.9839,"Xe124": 0.83,"Xe126": 0.8691,"Xe128": 0.8923,"Xe130": 0.9164,"Xe132": 0.8867,"Xe133": 0.96,"Xe134": 0.9853,"Cs133": 0.907,"Cs134": 0.996,"Cs135": 0.984,"Cs137": 0.9021,"Ba130": 0.8871,"Ba132": 0.9175,"Ba134": 0.9263,"Ba135": 0.9978,"Ba136": 0.9731,"Ce136": 0.8662,"Ce138": 0.9787,"Pr141": 0.6519,"Pr143": 0.31,"Pm147": 0.533,"Eu153": 0.984,"Dy164": 0.37,"Ho165": 0.949,"Er166": 0.2503,"Lu175": 0.3331,"Lu176": 0.999,"Hf179": 0.991,"W182": 0.8699,"W184": 0.9983,"Re185": 0.999,"Re187": 0.9729,"Au197": 0.999,"Hg196": 0.966,"Hg198": 0.9918,"Pb206": 0.9783,"Bi209": 0.6791,"Pa233": 0.4871,"U234": 0.5,"Np235": 0.4,"Np239": 0.3573,"Pu236": 0.5001,"Am241": 0.919,"Am243": 0.0626,"Bk247": 0.4,"Es253": 0.032,"Es255": 0.984}
 
 # tuple of (reaction name, possible MT values, (dA, dZ)) where dA is the change
 # in the mass number and dZ is the change in the atomic number
@@ -248,12 +249,21 @@ class DepletionChain(object):
                         else:
                             q_value = 0.0
 
-                        nuclide.reactions.append(ReactionTuple(
-                            name, daughter, q_value, 1.0))
+                        
+                        if parent in serpent_decay and name == "(n,gamma)":
+                            br1 = serpent_decay[parent]
+                            nuclide.reactions.append(ReactionTuple(
+                                name, daughter, q_value, br1))
+                            nuclide.reactions.append(ReactionTuple(
+                                name, daughter + "_m1", q_value, 1.0 - br1))
+                        else:
+                            nuclide.reactions.append(ReactionTuple(
+                                name, daughter, q_value, 1.0))
 
                 if any(mt in reactions_available for mt in [18, 19, 20, 21, 38]):
                     if parent in fpy_data:
                         q_value = reactions[parent][18]
+                        q_value = 2.0e8
                         nuclide.reactions.append(
                             ReactionTuple('fission', 0, q_value, 1.0))
 
