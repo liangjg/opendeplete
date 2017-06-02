@@ -22,30 +22,29 @@ def generate_initial_number_density():
 
     # Concentration to be used for all fuel pins
     fuel_dict = OrderedDict()
-    fuel_dict['U235'] = 1.05692e21
-    fuel_dict['U234'] = 1.00506e19
-    fuel_dict['U238'] = 2.21371e22
-    fuel_dict['O16'] = 4.62954e22
-    fuel_dict['O17'] = 1.127684e20
-    fuel_dict['I135'] = 1.0e10
-    fuel_dict['Xe135'] = 1.0e10
-    fuel_dict['Xe136'] = 1.0e10
-    fuel_dict['Cs135'] = 1.0e10
-    fuel_dict['Gd156'] = 1.0e10
-    fuel_dict['Gd157'] = 1.0e10
+    fuel_dict['U234'] = 8.40809941906e+18
+    fuel_dict['U235'] = 1.04652755446e+21
+    fuel_dict['U238'] = 2.19208402675e+22
+    fuel_dict['O16'] = 4.58422147203e+22
+    fuel_dict['O17'] = 1.74156381484e+19
+    fuel_dict['O18'] = 9.19214843062e+19
     # fuel_dict['O18'] = 9.51352e19 # Does not exist in ENDF71, merged into 17
 
     # Concentration to be used for the gadolinium fuel pin
     fuel_gd_dict = OrderedDict()
-    fuel_gd_dict['U235'] = 1.03579e21
-    fuel_gd_dict['U238'] = 2.16943e22
-    fuel_gd_dict['Gd156'] = 3.95517E+10
-    fuel_gd_dict['Gd157'] = 1.08156e20
-    fuel_gd_dict['O16'] = 4.64035e22
-    fuel_dict['I135'] = 1.0e10
-    fuel_dict['Xe136'] = 1.0e10
-    fuel_dict['Xe135'] = 1.0e10
-    fuel_dict['Cs135'] = 1.0e10
+    fuel_gd_dict['U234'] = 8.23993743068e+18
+    fuel_gd_dict['U235'] = 1.02559700337e+21
+    fuel_gd_dict['U238'] = 2.14824234621e+22
+    fuel_gd_dict['O16'] = 4.49253704259e+22
+    fuel_gd_dict['O17'] = 1.70673253854e+19
+    fuel_gd_dict['O18'] = 9.008305462e+19
+    fuel_gd_dict['Gd152'] = 1.57744481862e+18
+    fuel_gd_dict['Gd154'] = 1.7194148523e+19
+    fuel_gd_dict['Gd155'] = 1.16730916578e+20
+    fuel_gd_dict['Gd156'] = 1.61451477186e+20
+    fuel_gd_dict['Gd157'] = 1.23435057057e+20
+    fuel_gd_dict['Gd158'] = 1.95918646473e+20
+    fuel_gd_dict['Gd160'] = 1.72414718676e+20
     # There are a whole bunch of 1e-10 stuff here.
 
     # Concentration to be used for cladding

@@ -6,7 +6,7 @@ import opendeplete
 import example_geometry
 
 # Load geometry from example
-geometry, lower_left, upper_right = example_geometry.generate_problem()
+geometry, lower_left, upper_right = example_geometry.generate_problem(n_rings=10, n_wedges=1)
 
 # Create dt vector for 5.5 months with 15 day timesteps
 dt1 = 15*24*60*60  # 15 days
