@@ -455,8 +455,8 @@ def generate_cheap_geometry(n_rings):
     geometry.export_to_xml()
 
     # Run this if you want to verify the geometry
-    # lower_left = [0.0, 0.0, -0.5]
-    # upper_right = [1.5*pitch, 1.5*pitch, +0.5]
+    lower_left = [0.0, 0.0, -0.5]
+    upper_right = [1.5*pitch, 1.5*pitch, +0.5]
     # vol_calc = openmc.VolumeCalculation(cells, 100000000, lower_left, upper_right)
 
     # settings = openmc.Settings()
