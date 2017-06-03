@@ -13,27 +13,31 @@ result_folder = "test"
 # Load data
 results = read_results(result_folder + "/results")
 
-cell = "10004"
+cells = ["10004", "10013", "10022", "10031", "10040", "10049", "10058", "10067", "10076", "10085"]
 nuc = "Gd157"
 rxn = "(n,gamma)"
 
 # Total number of nuclides
 plt.figure()
-# Pointwise data
-x, y = evaluate_single_nuclide(results, cell, nuc)
-plt.semilogy(x, y)
+for cell in cells:
+    # Pointwise data
+    x, y = evaluate_single_nuclide(results, cell, nuc)
+    plt.semilogy(x, y, label=cell)
 
 plt.xlabel("Time, s")
 plt.ylabel("Total Number")
+plt.legend(loc="best")
 plt.savefig("number.pdf")
 
 # Reaction rate
 plt.figure()
-x, y = evaluate_reaction_rate(results, cell, nuc, rxn)
-plt.plot(x, y)
+for cell in cells:
+    # Pointwise data
+    x, y = evaluate_reaction_rate(results, cell, nuc, rxn)
+    plt.plot(x, y, label=cell)
 plt.xlabel("Time, s")
 plt.ylabel("Reaction Rate, 1/s")
-
+plt.legend(loc="best")
 plt.savefig("rate.pdf")
 
 # Eigenvalue
