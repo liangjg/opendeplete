@@ -231,6 +231,257 @@ def segment_pin(n_rings, n_wedges, r_fuel, r_gap, r_clad):
 
     return fuel_u, v_segment, v_gap, v_clad
 
+def generate_cheap_geometry(n_rings):
+    pitch = 1.26197
+    r_fuel = 0.412275
+    r_gap = 0.418987
+    r_clad = 0.476121
+
+    vol_fuel = np.pi * r_fuel**2
+
+    temperature, sab, initial_density, burn = generate_initial_number_density()
+
+    # Walls
+    left = openmc.XPlane(x0=0.0, name='left')
+    right = openmc.XPlane(x0=1.5*pitch, name='right')
+    bottom = openmc.YPlane(y0=0.0, name='bottom')
+    top = openmc.YPlane(y0=1.5*pitch, name='top')
+
+    left.boundary_type = 'reflective'
+    right.boundary_type = 'reflective'
+    top.boundary_type = 'reflective'
+    bottom.boundary_type = 'reflective'
+
+    radii_gd = []
+    radii_ul = []
+    radii_ur = []
+    radii_lr = []
+
+    cells = []
+
+    # Fill in fuels
+    for n in range(n_rings):
+        vol_outer = vol_fuel * (n + 1) / n_rings
+        r = np.sqrt(vol_outer / np.pi)
+        radii_gd.append(openmc.ZCylinder(x0=0.0, y0=0.0, R=r))
+        radii_ul.append(openmc.ZCylinder(x0=0.0, y0=pitch, R=r))
+        radii_ur.append(openmc.ZCylinder(x0=pitch, y0=pitch, R=r))
+        radii_lr.append(openmc.ZCylinder(x0=pitch, y0=0.0, R=r))
+
+        fuel_gd_i = openmc.Cell(name="Gd Ring " + str(n))
+        fuel_ul_i = openmc.Cell(name="UL Ring " + str(n))
+        fuel_ur_i = openmc.Cell(name="UR Ring " + str(n))
+        fuel_lr_i = openmc.Cell(name="LR Ring " + str(n))
+        if n == 0:
+            fuel_gd_i.region = -radii_gd[n] & +left & +bottom
+            fuel_ul_i.region = -radii_ul[n] & +left
+            fuel_ur_i.region = -radii_ur[n]
+            fuel_lr_i.region = -radii_lr[n] & +bottom
+        else:
+            fuel_gd_i.region = +radii_gd[n-1] & -radii_gd[n] & +left & +bottom
+            fuel_ul_i.region = +radii_ul[n-1] & -radii_ul[n] & +left
+            fuel_ur_i.region = +radii_ur[n-1] & -radii_ur[n]
+            fuel_lr_i.region = +radii_lr[n-1] & -radii_lr[n] & +bottom
+
+        fuel_gd_i.fill = density_to_mat(initial_density["fuel_gd"])
+
+        if "fuel_gd" in sab:
+            fuel_gd_i.fill.add_s_alpha_beta(sab["fuel_gd"])
+        fuel_gd_i.fill.temperature = temperature["fuel_gd"]
+        fuel_gd_i.fill.depletable = burn["fuel_gd"]
+        fuel_gd_i.fill.volume = vol_fuel / n_rings / 4.0
+
+        fuel_ul_i.fill = density_to_mat(initial_density["fuel"])
+
+        if "fuel" in sab:
+            fuel_ul_i.fill.add_s_alpha_beta(sab["fuel"])
+        fuel_ul_i.fill.temperature = temperature["fuel"]
+        fuel_ul_i.fill.depletable = burn["fuel"]
+        fuel_ul_i.fill.volume = vol_fuel / n_rings / 2.0
+
+        fuel_ur_i.fill = density_to_mat(initial_density["fuel"])
+
+        if "fuel" in sab:
+            fuel_ur_i.fill.add_s_alpha_beta(sab["fuel"])
+        fuel_ur_i.fill.temperature = temperature["fuel"]
+        fuel_ur_i.fill.depletable = burn["fuel"]
+        fuel_ur_i.fill.volume = vol_fuel / n_rings
+
+        fuel_lr_i.fill = density_to_mat(initial_density["fuel"])
+
+        if "fuel" in sab:
+            fuel_lr_i.fill.add_s_alpha_beta(sab["fuel"])
+        fuel_lr_i.fill.temperature = temperature["fuel"]
+        fuel_lr_i.fill.depletable = burn["fuel"]
+        fuel_lr_i.fill.volume = vol_fuel / n_rings / 2.0
+
+        cells.append(fuel_gd_i)
+        cells.append(fuel_ul_i)
+        cells.append(fuel_ur_i)
+        cells.append(fuel_lr_i)
+
+    # Gap
+    rg1 = openmc.ZCylinder(x0=0.0, y0=0.0, R=r_gap)
+    rg2 = openmc.ZCylinder(x0=0.0, y0=pitch, R=r_gap)
+    rg3 = openmc.ZCylinder(x0=pitch, y0=pitch, R=r_gap)
+    rg4 = openmc.ZCylinder(x0=pitch, y0=0.0, R=r_gap)
+    v_gap = np.pi * (r_gap**2 - r_fuel**2)
+
+    gap_gd = openmc.Cell(name="Gd Gap")
+    gap_ul = openmc.Cell(name="UL Gap")
+    gap_ur = openmc.Cell(name="UR Gap")
+    gap_lr = openmc.Cell(name="LR Gap")
+
+    gap_gd.region = +radii_gd[n_rings-1] & -rg1 & +left & +bottom
+    gap_ul.region = +radii_ul[n_rings-1] & -rg2 & +left
+    gap_ur.region = +radii_ur[n_rings-1] & -rg3
+    gap_lr.region = +radii_lr[n_rings-1] & -rg4 & +bottom
+
+    gap_gd.fill = density_to_mat(initial_density["gap"])
+
+    if "gap" in sab:
+        gap_gd.fill.add_s_alpha_beta(sab["gap"])
+    gap_gd.fill.temperature = temperature["gap"]
+    gap_gd.fill.depletable = burn["gap"]
+    gap_gd.fill.volume = v_gap / 4.0
+
+    gap_ul.fill = density_to_mat(initial_density["gap"])
+
+    if "gap" in sab:
+        gap_ul.fill.add_s_alpha_beta(sab["gap"])
+    gap_ul.fill.temperature = temperature["gap"]
+    gap_ul.fill.depletable = burn["gap"]
+    gap_ul.fill.volume = v_gap / 2.0
+
+    gap_ur.fill = density_to_mat(initial_density["gap"])
+
+    if "gap" in sab:
+        gap_ur.fill.add_s_alpha_beta(sab["gap"])
+    gap_ur.fill.temperature = temperature["gap"]
+    gap_ur.fill.depletable = burn["gap"]
+    gap_ur.fill.volume = v_gap
+
+    gap_lr.fill = density_to_mat(initial_density["gap"])
+
+    if "gap" in sab:
+        gap_lr.fill.add_s_alpha_beta(sab["gap"])
+    gap_lr.fill.temperature = temperature["gap"]
+    gap_lr.fill.depletable = burn["gap"]
+    gap_lr.fill.volume = v_gap / 2.0
+
+    cells.append(gap_gd)
+    cells.append(gap_ul)
+    cells.append(gap_ur)
+    cells.append(gap_lr)
+
+    # Clad
+    rclad1 = openmc.ZCylinder(x0=0.0, y0=0.0, R=r_clad)
+    rclad2 = openmc.ZCylinder(x0=0.0, y0=pitch, R=r_clad)
+    rclad3 = openmc.ZCylinder(x0=pitch, y0=pitch, R=r_clad)
+    rclad4 = openmc.ZCylinder(x0=pitch, y0=0.0, R=r_clad)
+    v_clad = np.pi * (r_clad**2 - r_gap**2)
+
+    clad_gd = openmc.Cell(name="Gd Clad")
+    clad_ul = openmc.Cell(name="UL Clad")
+    clad_ur = openmc.Cell(name="UR Clad")
+    clad_lr = openmc.Cell(name="LR Clad")
+
+    clad_gd.region = +rg1 & -rclad1 & +left & +bottom
+    clad_ul.region = +rg2 & -rclad2 & +left
+    clad_ur.region = +rg3 & -rclad3
+    clad_lr.region = +rg4 & -rclad4 & +bottom
+
+    clad_gd.fill = density_to_mat(initial_density["clad"])
+
+    if "clad" in sab:
+        clad_gd.fill.add_s_alpha_beta(sab["clad"])
+    clad_gd.fill.temperature = temperature["clad"]
+    clad_gd.fill.depletable = burn["clad"]
+    clad_gd.fill.volume = v_clad / 4.0
+
+    clad_ul.fill = density_to_mat(initial_density["clad"])
+
+    if "clad" in sab:
+        clad_ul.fill.add_s_alpha_beta(sab["clad"])
+    clad_ul.fill.temperature = temperature["clad"]
+    clad_ul.fill.depletable = burn["clad"]
+    clad_ul.fill.volume = v_clad / 2.0
+
+    clad_ur.fill = density_to_mat(initial_density["clad"])
+
+    if "clad" in sab:
+        clad_ur.fill.add_s_alpha_beta(sab["clad"])
+    clad_ur.fill.temperature = temperature["clad"]
+    clad_ur.fill.depletable = burn["clad"]
+    clad_ur.fill.volume = v_clad
+
+    clad_lr.fill = density_to_mat(initial_density["clad"])
+
+    if "clad" in sab:
+        clad_lr.fill.add_s_alpha_beta(sab["clad"])
+    clad_lr.fill.temperature = temperature["clad"]
+    clad_lr.fill.depletable = burn["clad"]
+    clad_lr.fill.volume = v_clad / 2.0
+
+    cells.append(clad_gd)
+    cells.append(clad_ul)
+    cells.append(clad_ur)
+    cells.append(clad_lr)
+
+    # Water
+    water = openmc.Cell(name="cool")
+    water.region = +left & +bottom & -top & -right & +rclad1 & +rclad2 & +rclad3 & +rclad4
+
+    water.fill = density_to_mat(initial_density["cool"])
+
+    if "cool" in sab:
+        water.fill.add_s_alpha_beta(sab["cool"])
+    water.fill.temperature = temperature["cool"]
+    water.fill.depletable = burn["cool"]
+    water.fill.volume = (1.5*pitch)**2 - (0.25 + 0.5 * 2 + 1.0) * np.pi * r_clad**2
+
+    print(water.fill.volume)
+
+    cells.append(water)
+
+    # Instantiate Universe
+    root = openmc.Universe(universe_id=0, name='root universe')
+
+    # Register Cells with Universe
+    root.add_cells(cells)
+
+    # Instantiate a Geometry, register the root Universe, and export to XML
+    geometry = openmc.Geometry(root)
+    geometry.export_to_xml()
+
+    # Run this if you want to verify the geometry
+    # lower_left = [0.0, 0.0, -0.5]
+    # upper_right = [1.5*pitch, 1.5*pitch, +0.5]
+    # vol_calc = openmc.VolumeCalculation(cells, 100000000, lower_left, upper_right)
+
+    # settings = openmc.Settings()
+    # settings.volume_calculations = [vol_calc]
+    # settings.export_to_xml()
+
+    # openmc.calculate_volumes()
+    # vol_calc.load_results("volume_1.h5")
+
+    # for cell in cells:
+    #     print(cell.name, cell.fill.volume, vol_calc.volumes[cell.id][0], np.abs(cell.fill.volume - vol_calc.volumes[cell.id][0])/ cell.fill.volume)
+
+    # exit()
+
+    plot = openmc.Plot()
+    plot.basis = 'xy'
+    plot.origin = (0.75*pitch, 0.75*pitch, 0.0)
+    plot.width = (1.5*pitch, 1.5*pitch)
+    plot.pixels = (400, 400)
+    plots = openmc.Plots()
+    plots.append(plot)
+    plots.export_to_xml()
+
+    return geometry, lower_left, upper_right
+
 def generate_geometry(n_rings, n_wedges):
     """ Generates example geometry.
 
