@@ -440,8 +440,6 @@ def generate_cheap_geometry(n_rings):
     water.fill.depletable = burn["cool"]
     water.fill.volume = (1.5*pitch)**2 - (0.25 + 0.5 * 2 + 1.0) * np.pi * r_clad**2
 
-    print(water.fill.volume)
-
     cells.append(water)
 
     # Instantiate Universe

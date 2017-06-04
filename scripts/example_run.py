@@ -33,4 +33,4 @@ settings.output_dir = 'reference' + sys.argv[1]
 op = opendeplete.OpenMCOperator(geometry, settings)
 
 # Perform simulation using the MCNPX/MCNP6 algorithm
-opendeplete.integrator.cecm(op)
+opendeplete.integrator.celi_m1(op)

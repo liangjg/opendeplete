@@ -8,12 +8,12 @@ from opendeplete import read_results, \
                         evaluate_eigenvalue
 
 # Set variables for where the data is, and what we want to read out.
-result_folder = "test"
+result_folder = "reference2"
 
 # Load data
 results = read_results(result_folder + "/results")
 
-cells = ["10004", "10013", "10022", "10031", "10040", "10049", "10058", "10067", "10076", "10085"]
+cells = ["10000", "10004", "10008", "10016", "10020", "10024", "10028", "10032", "10036"]
 nuc = "Gd157"
 rxn = "(n,gamma)"
 
@@ -27,7 +27,7 @@ for cell in cells:
 plt.xlabel("Time, s")
 plt.ylabel("Total Number")
 plt.legend(loc="best")
-plt.savefig("number.pdf")
+plt.savefig("number2.pdf")
 
 # Reaction rate
 plt.figure()
@@ -38,7 +38,7 @@ for cell in cells:
 plt.xlabel("Time, s")
 plt.ylabel("Reaction Rate, 1/s")
 plt.legend(loc="best")
-plt.savefig("rate.pdf")
+plt.savefig("rate2.pdf")
 
 # Eigenvalue
 plt.figure()
@@ -47,4 +47,4 @@ plt.plot(x, y)
 plt.xlabel("Time, s")
 plt.ylabel("Eigenvalue")
 
-plt.savefig("eigvl.pdf")
+plt.savefig("eigvl2.pdf")
