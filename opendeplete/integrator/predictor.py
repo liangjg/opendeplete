@@ -55,7 +55,7 @@ def predictor(operator, print_out=True):
 
         eigvls.append(eigvl)
         seeds.append(seed)
-        rates_array.append(rates)
+        rates_array.append(copy.deepcopy(rates))
 
         # Create results, write to disk
         save_results(operator, x, rates_array, eigvls, seeds, [t, t + dt], i)

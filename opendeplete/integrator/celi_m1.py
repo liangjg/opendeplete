@@ -59,7 +59,7 @@ def celi_m1(operator, m=5, print_out=True):
 
         eigvls.append(eigvl)
         seeds.append(seed)
-        rates_array.append(rates)
+        rates_array.append(copy.deepcopy(rates))
 
         x_result = []
 
@@ -83,7 +83,7 @@ def celi_m1(operator, m=5, print_out=True):
 
         eigvls.append(eigvl)
         seeds.append(seed)
-        rates_array.append(rates)
+        rates_array.append(copy.deepcopy(rates))
 
         x_result = []
 
