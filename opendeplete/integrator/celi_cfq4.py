@@ -57,7 +57,7 @@ def celi_cfq4(operator, print_out=True):
         vec, t, _ = celi_cfq4_inner(operator, vec, i, t, dt, print_out)
 
     # Perform one last simulation
-    x = [copy.copy(vec)]
+    x = [copy.deepcopy(vec)]
     seeds = []
     eigvls = []
     rates_array = []
@@ -105,7 +105,7 @@ def celi_cfq4_inner(operator, vec, i, t, dt, print_out):
     n_mats = len(vec)
 
     # Create vectors
-    x = [copy.copy(vec)]
+    x = [copy.deepcopy(vec)]
     seeds = []
     eigvls = []
     rates_array = []
@@ -149,7 +149,7 @@ def celi_cfq4_inner(operator, vec, i, t, dt, print_out):
         f2 = dt * operator.form_matrix(rates_array[1], mat)
 
         # Perform commutator-free integral
-        x_new = copy.copy(x[0][mat])
+        x_new = copy.deepcopy(x[0][mat])
 
         # Compute linearly interpolated f at points
         # A{1,2} = f(1/2 -/+ sqrt(3)/6)

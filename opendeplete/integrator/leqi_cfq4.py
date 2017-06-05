@@ -67,7 +67,7 @@ def leqi_cfq4(operator, print_out=True):
     # Perform remaining LE/QI
     for i, dt in enumerate(operator.settings.dt_vec[1::]):
         # Create vectors
-        x = [copy.copy(vec)]
+        x = [copy.deepcopy(vec)]
         seeds = []
         eigvls = []
         rates_array = []
@@ -87,7 +87,7 @@ def leqi_cfq4(operator, print_out=True):
             f2 = dt * operator.form_matrix(rates_array[0], mat)
 
             # Perform commutator-free integral
-            x_new = copy.copy(x[0][mat])
+            x_new = copy.deepcopy(x[0][mat])
 
             # Compute linearly extrapolated f at points
             # A{1,2} = f(1/2 -/+ sqrt(3)/6)
@@ -126,7 +126,7 @@ def leqi_cfq4(operator, print_out=True):
             f3 = dt * operator.form_matrix(rates_array[1], mat)
 
             # Perform commutator-free integral
-            x_new = copy.copy(x[0][mat])
+            x_new = copy.deepcopy(x[0][mat])
 
             # Compute quadratically interpolated f at points
             # A{1,2} = f(1/2 -/+ sqrt(3)/6)
@@ -160,7 +160,7 @@ def leqi_cfq4(operator, print_out=True):
         vec = copy.deepcopy(x_result)
 
     # Perform one last simulation
-    x = [copy.copy(vec)]
+    x = [copy.deepcopy(vec)]
     seeds = []
     eigvls = []
     rates_array = []

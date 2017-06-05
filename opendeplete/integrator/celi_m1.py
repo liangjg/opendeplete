@@ -53,7 +53,7 @@ def celi_m1(operator, m=5, print_out=True):
         vec, t, _ = celi_m1_inner(operator, m, vec, i, t, dt, print_out)
 
     # Perform one last simulation
-    x = [copy.copy(vec)]
+    x = [copy.deepcopy(vec)]
     seeds = []
     eigvls = []
     rates_array = []
@@ -103,7 +103,7 @@ def celi_m1_inner(operator, m, vec, i, t, dt, print_out):
     n_mats = len(vec)
 
     # Create vectors
-    x = [copy.copy(vec)]
+    x = [copy.deepcopy(vec)]
     seeds = []
     eigvls = []
     rates_array = []
@@ -147,7 +147,7 @@ def celi_m1_inner(operator, m, vec, i, t, dt, print_out):
         f2 = operator.form_matrix(rates_array[1], mat)
 
         # Perform substepping
-        x_new = copy.copy(x[0][mat])
+        x_new = copy.deepcopy(x[0][mat])
         for j in range(m):
             a = j / m
             b = (j + 1) / m
