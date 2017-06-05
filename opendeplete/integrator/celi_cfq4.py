@@ -1,6 +1,7 @@
-""" The CE/LI integrator.
+""" The CE/LI CFQ4 integrator.
 
-Implements the CE/LI Predictor-Corrector algorithm.
+Implements the CE/LI Predictor-Corrector algorithm using commutator free
+high order integrators.
 
 This algorithm is mathematically defined as:
 
@@ -29,15 +30,13 @@ from mpi4py import MPI
 from .cram import CRAM48
 from .save_results import save_results
 
-def celi_cfq4(operator, m=5, print_out=True):
+def celi_cfq4(operator, print_out=True):
     """ Performs integration of an operator using the CE/LI CFQ4 algorithm.
 
     Parameters
     ----------
     operator : Operator
         The operator object to simulate on.
-    m : Int, optional, default 5
-        Number of substeps to perform
     print_out : bool, optional
         Whether or not to print out time.
     """
@@ -55,7 +54,7 @@ def celi_cfq4(operator, m=5, print_out=True):
     t = 0.0
 
     for i, dt in enumerate(operator.settings.dt_vec):
-        vec, t, _ = celi_cfq4_inner(operator, m, vec, i, t, dt, print_out)
+        vec, t, _ = celi_cfq4_inner(operator, vec, i, t, dt, print_out)
 
     # Perform one last simulation
     x = [copy.copy(vec)]
@@ -75,15 +74,13 @@ def celi_cfq4(operator, m=5, print_out=True):
     # Return to origin
     os.chdir(dir_home)
 
-def celi_cfq4_inner(operator, m, vec, i, t, dt, print_out):
+def celi_cfq4_inner(operator, vec, i, t, dt, print_out):
     """ The inner loop of CE/LI CFQ4.
 
     Parameters
     ----------
     operator : Operator
         The operator object to simulate on.
-    m : Int
-        Number of substeps to perform
     vec : list of numpy.array
         Nuclide vector, beginning of time.
     i : Int

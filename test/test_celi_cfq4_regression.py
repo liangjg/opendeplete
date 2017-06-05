@@ -1,4 +1,4 @@
-""" Regression tests for celi_m1.py"""
+""" Regression tests for celi_cfq4.py"""
 
 import os
 import unittest
@@ -11,7 +11,7 @@ from opendeplete import results
 from opendeplete import utilities
 import test.dummy_geometry as dummy_geometry
 
-class TestCELICFQ4Regression(unittest.TestCase):
+class TestCELI_CFQ4Regression(unittest.TestCase):
     """ Regression tests for opendeplete.integrator.celi_cfq4 algorithm.
 
     These tests integrate a simple test problem described in dummy_geometry.py.

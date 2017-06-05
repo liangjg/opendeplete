@@ -1,6 +1,6 @@
-""" The CE/LI integrator.
+""" The CE/LI M1 integrator.
 
-Implements the CE/LI Predictor-Corrector algorithm.
+Implements the CE/LI Predictor-Corrector algorithm using Magnus integrator.
 
 This algorithm is mathematically defined as:
 
@@ -10,6 +10,9 @@ This algorithm is mathematically defined as:
     y_p = expm(A_p h) y_n
     A_c = A(y_p, t_n)
     A(t) = t/dt * A_c + (dt - t)/dt * A_p
+
+Here, A(t) is integrated by averaging A(t) over a substep and using the matrix
+exponent.
 """
 
 import copy

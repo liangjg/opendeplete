@@ -11,7 +11,7 @@ from opendeplete import results
 from opendeplete import utilities
 import test.dummy_geometry as dummy_geometry
 
-class TestLEQIRegression(unittest.TestCase):
+class TestLEQI_M1Regression(unittest.TestCase):
     """ Regression tests for opendeplete.integrator.leqi_m1 algorithm.
 
     These tests integrate a simple test problem described in dummy_geometry.py.
@@ -24,7 +24,7 @@ class TestLEQIRegression(unittest.TestCase):
         cls.results = "test_integrator_regression"
 
     def test_leqi_m1(self):
-        """ Integral regression test of integrator algorithm using LE/QI. """
+        """ Integral regression test of integrator algorithm using LE/QI M1. """
 
         settings = opendeplete.Settings()
         settings.dt_vec = [1/2, 1/3, 2/3]
@@ -32,7 +32,7 @@ class TestLEQIRegression(unittest.TestCase):
 
         op = dummy_geometry.DummyGeometry(settings)
 
-        # Perform simulation using the CE/LI M1 algorithm
+        # Perform simulation using the LE/QI M1 algorithm
         opendeplete.leqi_m1(op, print_out=False)
 
         # Load the files

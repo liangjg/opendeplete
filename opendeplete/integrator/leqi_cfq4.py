@@ -1,6 +1,7 @@
-""" The LE/QI integrator.
+""" The LE/QI CFQ4 integrator.
 
-Implements the LE/QI Predictor-Corrector algorithm using Magnus integrator.
+Implements the LE/QI Predictor-Corrector algorithm using commutator free
+high order integrators.
 
 This algorithm is mathematically defined as:
 
@@ -13,8 +14,13 @@ This algorithm is mathematically defined as:
     A_c = A(y_p, y_n+1)
     A_q(t) quadratic interpolation of A_m1, A_0, A_c
 
-Here, A(t) is integrated by averaging A(t) over a substep and using the matrix
-exponent.
+Here, A(t) is integrated using the fourth order algorithm described below.
+
+From
+----
+    Thalhammer, Mechthild. "A fourth-order commutator-free exponential
+    integrator for nonautonomous differential equations." SIAM journal on
+    numerical analysis 44.2 (2006): 851-864.
 
 It is initialized using the CE/LI algorithm.
 """
@@ -25,19 +31,17 @@ import time
 
 from mpi4py import MPI
 
-from .celi_m1 import celi_m1_inner
+from .celi_cfq4 import celi_cfq4_inner
 from .cram import CRAM48
 from .save_results import save_results
 
-def leqi_m1(operator, m=5, print_out=True):
-    """ Performs integration of an operator using the LE/QI M1 algorithm.
+def leqi_cfq4(operator, print_out=True):
+    """ Performs integration of an operator using the LE/QI CFQ4 algorithm.
 
     Parameters
     ----------
     operator : Operator
         The operator object to simulate on.
-    m : Int, optional, default 5
-        Number of substeps to perform
     print_out : bool, optional
         Whether or not to print out time.
     """
@@ -56,9 +60,9 @@ def leqi_m1(operator, m=5, print_out=True):
 
     t = 0.0
 
-    # Perform single step of CE/LI M1
+    # Perform single step of CE/LI CFQ4
     dt_l = operator.settings.dt_vec[0]
-    vec, t, rates_last = celi_m1_inner(operator, m, vec, 0, t, dt_l, print_out)
+    vec, t, rates_last = celi_cfq4_inner(operator, vec, 0, t, dt_l, print_out)
 
     # Perform remaining LE/QI
     for i, dt in enumerate(operator.settings.dt_vec[1::]):
@@ -79,18 +83,23 @@ def leqi_m1(operator, m=5, print_out=True):
         t_start = time.time()
         for mat in range(n_mats):
             # Form matrices
-            f1 = operator.form_matrix(rates_last, mat)
-            f2 = operator.form_matrix(rates_array[0], mat)
+            f1 = dt * operator.form_matrix(rates_last, mat)
+            f2 = dt * operator.form_matrix(rates_array[0], mat)
 
-            # Perform substepping
+            # Perform commutator-free integral
             x_new = copy.copy(x[0][mat])
-            for j in range(m):
-                a = j / m
-                b = (j + 1) / m
-                c1 = (a - b) * (a + b) * dt**2 / (2 * dt_l)
-                c2 = -(a - b) * dt * ((a + b) * dt + 2 * dt_l) / (2 * dt_l)
 
-                x_new = CRAM48(f1*c1 + f2*c2, x_new, 1.0)
+            # Compute linearly extrapolated f at points
+            # A{1,2} = f(1/2 -/+ sqrt(3)/6)
+            # Then
+            # a{1,2} = 1/4 +/- sqrt(3)/6
+            # m1 = a2 * A1 + a1 * A2
+            # m2 = a1 * A1 + a2 * A2
+            m1 = -5 * dt / (12 * dt_l) * f1 + (5 * dt + 6 * dt_l) / (12 * dt_l) * f2
+            m2 = -dt / (12 * dt_l) * f1 + (dt + 6 * dt_l) / (12 * dt_l) * f2
+
+            x_new = CRAM48(m2, x_new, 1.0)
+            x_new = CRAM48(m1, x_new, 1.0)
 
             x_result.append(x_new)
 
@@ -112,19 +121,28 @@ def leqi_m1(operator, m=5, print_out=True):
         t_start = time.time()
         for mat in range(n_mats):
             # Form matrices
-            f1 = operator.form_matrix(rates_last, mat)
-            f2 = operator.form_matrix(rates_array[0], mat)
-            f3 = operator.form_matrix(rates_array[1], mat)
+            f1 = dt * operator.form_matrix(rates_last, mat)
+            f2 = dt * operator.form_matrix(rates_array[0], mat)
+            f3 = dt * operator.form_matrix(rates_array[1], mat)
 
-            # Perform substepping
+            # Perform commutator-free integral
             x_new = copy.copy(x[0][mat])
-            for j in range(m):
-                a = j / m
-                b = (j + 1) / m
-                c1 = (((3 - 2 * a) * a**2 + b**2 * (-3 + 2 * b)) * dt**3)/(6 * dt_l * (dt + dt_l))
-                c2 = ((a - b) * dt * ((2 * a**2 + a * (-3 + 2 * b) + b * (-3 + 2 * b)) * dt + 3 * (-2 + a + b) * dt_l))/(6 * dt_l)
-                c3 = (dt * (-2 * a**3 * dt - 3 * a**2 * dt_l + b**2 * (2 * b * dt + 3 * dt_l)))/(6 * (dt + dt_l))
-                x_new = CRAM48(f1*c1 + f2*c2 + f3*c3, x_new, 1.0)
+
+            # Compute quadratically interpolated f at points
+            # A{1,2} = f(1/2 -/+ sqrt(3)/6)
+            # Then
+            # a{1,2} = 1/4 +/- sqrt(3)/6
+            # m1 = a2 * A1 + a1 * A2
+            # m2 = a1 * A1 + a2 * A2
+            m1 = (-dt**2 / (12 * dt_l * (dt + dt_l)) * f1 +
+                 (dt**2 + 2 * dt * dt_l + dt_l**2) / (12 * dt_l * (dt + dt_l)) * f2 +
+                 (4 * dt * dt_l + 5 * dt_l**2) / (12 * dt_l * (dt + dt_l)) * f3)
+            m2 = (-dt**2/(12 * dt_l * (dt + dt_l)) * f1 +
+                 (dt**2 + 6 * dt * dt_l + 5 * dt_l**2) / (12 * dt_l * (dt + dt_l)) * f2 + 
+                 dt_l / (12 * (dt + dt_l)) * f3)
+
+            x_new = CRAM48(m2, x_new, 1.0)
+            x_new = CRAM48(m1, x_new, 1.0)
 
             x_result.append(x_new)
 
