@@ -7,6 +7,7 @@ The integrator subcomponents.
 
 from .cecm import *
 from .celi_m1 import *
+from .celi_cfq4 import *
 from .cram import *
 from .leqi_m1 import *
 from .predictor import *

@@ -10,6 +10,14 @@ This algorithm is mathematically defined as:
     y_p = expm(A_p h) y_n
     A_c = A(y_p, t_n)
     A(t) = t/dt * A_c + (dt - t)/dt * A_p
+
+Here, A(t) is integrated using the fourth order algorithm described below.
+
+From
+----
+    Thalhammer, Mechthild. "A fourth-order commutator-free exponential
+    integrator for nonautonomous differential equations." SIAM journal on
+    numerical analysis 44.2 (2006): 851-864.
 """
 
 import copy
@@ -21,8 +29,8 @@ from mpi4py import MPI
 from .cram import CRAM48
 from .save_results import save_results
 
-def celi_m1(operator, m=5, print_out=True):
-    """ Performs integration of an operator using the CE/LI M1 algorithm.
+def celi_cfq4(operator, m=5, print_out=True):
+    """ Performs integration of an operator using the CE/LI CFQ4 algorithm.
 
     Parameters
     ----------
@@ -47,7 +55,7 @@ def celi_m1(operator, m=5, print_out=True):
     t = 0.0
 
     for i, dt in enumerate(operator.settings.dt_vec):
-        vec, t, _ = celi_m1_inner(operator, m, vec, i, t, dt, print_out)
+        vec, t, _ = celi_cfq4_inner(operator, m, vec, i, t, dt, print_out)
 
     # Perform one last simulation
     x = [copy.copy(vec)]
@@ -67,8 +75,8 @@ def celi_m1(operator, m=5, print_out=True):
     # Return to origin
     os.chdir(dir_home)
 
-def celi_m1_inner(operator, m, vec, i, t, dt, print_out):
-    """ The inner loop of CE/LI M1.
+def celi_cfq4_inner(operator, m, vec, i, t, dt, print_out):
+    """ The inner loop of CE/LI CFQ4.
 
     Parameters
     ----------
@@ -140,18 +148,23 @@ def celi_m1_inner(operator, m, vec, i, t, dt, print_out):
     t_start = time.time()
     for mat in range(n_mats):
         # Form matrices
-        f1 = operator.form_matrix(rates_array[0], mat)
-        f2 = operator.form_matrix(rates_array[1], mat)
+        f1 = dt * operator.form_matrix(rates_array[0], mat)
+        f2 = dt * operator.form_matrix(rates_array[1], mat)
 
-        # Perform substepping
+        # Perform commutator-free integral
         x_new = copy.copy(x[0][mat])
-        for j in range(m):
-            a = j / m
-            b = (j + 1) / m
-            c1 = 1/2 * (a - b) * (-2 + a + b) * dt
-            c2 = 1/2 * (-a**2 + b**2) * dt
 
-            x_new = CRAM48(f1*c1 + f2*c2, x_new, 1.0)
+        # Compute linearly interpolated f at points
+        # A{1,2} = f(1/2 -/+ sqrt(3)/6)
+        # Then
+        # a{1,2} = 1/4 +/- sqrt(3)/6
+        # m1 = a2 * A1 + a1 * A2
+        # m2 = a1 * A1 + a2 * A2
+        m1 = 1/12 * (f1 + 5 * f2)
+        m2 = 1/12 * (5 * f1 + f2)
+
+        x_new = CRAM48(m2, x_new, 1.0)
+        x_new = CRAM48(m1, x_new, 1.0)
 
         x_result.append(x_new)
 

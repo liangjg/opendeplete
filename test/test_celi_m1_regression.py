@@ -11,7 +11,7 @@ from opendeplete import results
 from opendeplete import utilities
 import test.dummy_geometry as dummy_geometry
 
-class TestCELIRegression(unittest.TestCase):
+class TestCELIM1Regression(unittest.TestCase):
     """ Regression tests for opendeplete.integrator.celi_m1 algorithm.
 
     These tests integrate a simple test problem described in dummy_geometry.py.
@@ -24,7 +24,7 @@ class TestCELIRegression(unittest.TestCase):
         cls.results = "test_integrator_regression"
 
     def test_celi_m1(self):
-        """ Integral regression test of integrator algorithm using CE/LI. """
+        """ Integral regression test of integrator algorithm using CE/LI M1. """
 
         settings = opendeplete.Settings()
         settings.dt_vec = [0.75, 0.75]
