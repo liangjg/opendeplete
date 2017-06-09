@@ -4,7 +4,12 @@ Contains functions that can be used to post-process objects that come out of
 the results module.
 """
 
+import copy
+import gc
+import os
+
 import numpy as np
+from .results import read_results
 
 def evaluate_single_nuclide(results, cell, nuc):
     """ Evaluates a single nuclide in a single cell from a results list.
@@ -96,3 +101,80 @@ def evaluate_eigenvalue(results):
         eigenvalue[i] = result.k[0]
 
     return time, eigenvalue
+
+def load_all(folder):
+    """ Iterates through all results in a folder to compute results.
+
+    Parameters
+    ----------
+    folder : string
+        Location of results.h5 files
+
+    Returns
+    -------
+
+    """
+
+    # Get results count
+    files = [os.path.join(folder, file) for file in os.listdir(folder) if file.endswith(".h5")]
+    n_results = len(files)
+    n_steps = 0
+    nuc_nuc_to_ind = []
+    nuc_mat_to_ind = []
+    rate_nuc_to_ind = []
+    rate_mat_to_ind = []
+    rate_react_to_ind = []
+
+    ev_array = []
+    nuc_array = []
+    rate_array = []
+    time = []
+
+    for i, file in enumerate(files):
+        result = read_results(file)
+        # Allocate
+        if n_steps == 0:
+            n_steps = len(result)
+            nuc_nuc_to_ind = copy.deepcopy(result[0].nuc_to_ind)
+            nuc_mat_to_ind = copy.deepcopy(result[0].mat_to_ind)
+            rate_nuc_to_ind = copy.deepcopy(result[0].rates[0].nuc_to_ind)
+            rate_mat_to_ind = copy.deepcopy(result[0].rates[0].mat_to_ind)
+            rate_react_to_ind = copy.deepcopy(result[0].rates[0].react_to_ind)
+
+            n_mat = len(nuc_mat_to_ind)
+            n_nuc = len(nuc_nuc_to_ind)
+
+            nr_mat = len(rate_mat_to_ind)
+            nr_nuc = len(rate_nuc_to_ind)
+            nr_rate = len(rate_react_to_ind)
+
+            ev_array = np.zeros((n_results, n_steps))
+            nuc_array = np.zeros((n_results, n_steps, n_mat, n_nuc))
+            rate_array = np.zeros((n_results, n_steps, nr_mat, nr_nuc, nr_rate))
+
+        # Read data
+        time, ev = evaluate_eigenvalue(result)
+        if len(ev) > n_steps:
+            ev_array[i, :] = ev[:n_steps]
+        else:
+            ev_array[i, :len(ev)] = ev
+        for mat, j in nuc_mat_to_ind.items():
+            for nuc, k in nuc_nuc_to_ind.items():
+                time, n = evaluate_single_nuclide(result, mat, nuc)
+                if len(n) > n_steps:
+                    nuc_array[i, :, j, k] = n[:n_steps]
+                else:
+                    nuc_array[i, :len(n), j, k] = n
+        for mat, j in rate_mat_to_ind.items():
+            for nuc, k in rate_nuc_to_ind.items():
+                for react, l in rate_react_to_ind.items():
+                    time, r = evaluate_reaction_rate(result, mat, nuc, react)
+                    if len(r) > n_steps:
+                        rate_array[i, :, j, k, l] = r[:n_steps]
+                    else:
+                        rate_array[i, :len(r), j, k, l] = r
+        del result
+        gc.collect()
+
+    return time, nuc_nuc_to_ind, nuc_mat_to_ind, rate_nuc_to_ind, rate_mat_to_ind, rate_react_to_ind, ev_array, nuc_array, rate_array
+

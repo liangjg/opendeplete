@@ -13,7 +13,7 @@ result_folder = "reference2"
 # Load data
 results = read_results(result_folder + "/results")
 
-cells = ["10000", "10004", "10008", "10016", "10020", "10024", "10028", "10032", "10036"]
+cells = ["10000", "10004", "10008", "10012", "10016", "10020", "10024", "10028", "10032", "10036"]
 nuc = "Gd157"
 rxn = "(n,gamma)"
 

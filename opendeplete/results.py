@@ -423,7 +423,7 @@ def read_results(filename):
     Parameters
     ----------
     filename : str
-        The filename to read from, without extension.
+        The filename to read from.
 
     Returns
     -------
@@ -431,7 +431,7 @@ def read_results(filename):
         The result objects.
     """
 
-    file = h5py.File(filename + ".h5", "r")
+    file = h5py.File(filename, "r")
 
     assert file["/version"].value == RESULTS_VERSION
 
