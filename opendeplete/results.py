@@ -14,6 +14,95 @@ from .reaction_rates import ReactionRates
 
 RESULTS_VERSION = 2
 
+class ResultsArray(object):
+    """ High-speed loading of Results Arrays.
+
+    Only loads beginning-of-step data.  Use Results for all.
+
+    Attributes
+    ----------
+    k : list of float
+        Eigenvalue for each step.
+    time : list of float
+        Time at each step, seconds.
+    rates : numpy.array
+        The reaction rates, stored by step, mat, nuclide, reaction.
+    volume : OrderedDict of int to float
+        Dictionary mapping mat id to volume.
+    mat_to_ind : OrderedDict of str to int
+        A dictionary mapping mat ID as string to index.
+    nuc_to_ind : OrderedDict of str to int
+        A dictionary mapping nuclide name as string to index for nuclides.
+    rxn_nuc_to_ind : OrderedDict of str to int
+        A dictionary mapping nuclide name as string to index for reactions.
+        These are different as there are usually 9x as many nuclides as there
+        are nuclides with reaction rates.
+    rxn_to_ind : OrderedDict of str to int
+        A dictionary mapping reaction name as string to index.
+    data : numpy.array
+        Atom quantity, stored by stage, mat, then by nuclide.
+    """
+
+    def __init__(self):
+        self.k = None
+        self.time = None
+        self.rates = None
+        self.volume = None
+        self.mat_to_ind = None
+        self.nuc_to_ind_nuc = None
+        self.nuc_to_ind_rate = None
+        self.react_to_ind = None
+        self.data = None
+
+    @classmethod
+    def load(cls, filename):
+
+        rate_array = cls()
+
+        handle = h5py.File(filename, "r")
+
+        assert handle["/version"].value == RESULTS_VERSION
+
+        # Grab handles
+        number_dset = handle["/number"]
+        eigenvalues_dset = handle["/eigenvalues"]
+        seeds_dset = handle["/seeds"]
+        time_dset = handle["/time"]
+
+        rate_array.data = number_dset[:, 0, :, :]
+        rate_array.rates = handle["/reaction rates"][:, 0, :, :, :]
+        rate_array.k = eigenvalues_dset[:, 0]
+        rate_array.time = time_dset[:, 0]
+
+        # Reconstruct dictionaries
+        rate_array.volume = OrderedDict()
+        rate_array.mat_to_ind = OrderedDict()
+        rate_array.nuc_to_ind = OrderedDict()
+        rate_array.rxn_nuc_to_ind = OrderedDict()
+        rate_array.rxn_to_ind = OrderedDict()
+
+        for mat in handle["/cells"]:
+            mat_handle = handle["/cells/" + mat]
+            vol = mat_handle.attrs["volume"]
+            ind = mat_handle.attrs["index"]
+
+            rate_array.volume[mat] = vol
+            rate_array.mat_to_ind[mat] = ind
+
+        for nuc in handle["/nuclides"]:
+            nuc_handle = handle["/nuclides/" + nuc]
+            ind_atom = nuc_handle.attrs["atom number index"]
+            rate_array.nuc_to_ind[nuc] = ind_atom
+
+            if "reaction rate index" in nuc_handle.attrs:
+                rate_array.rxn_nuc_to_ind[nuc] = nuc_handle.attrs["reaction rate index"]
+
+        for rxn in handle["/reactions"]:
+            rxn_handle = handle["/reactions/" + rxn]
+            rate_array.rxn_to_ind[rxn] = rxn_handle.attrs["index"]
+
+        return rate_array
+
 class Results(object):
     """ Contains output of opendeplete.
 
