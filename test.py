@@ -26,6 +26,7 @@ suite_normal = [
     "test.test_cf4_regression",
     "test.test_depletion_chain",
     "test.test_el3_regression",
+    "test.test_el3_ats",
     "test.test_epc_rk4_regression",
     "test.test_integrator",
     "test.test_leqi_m1_regression",

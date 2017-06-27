@@ -484,7 +484,7 @@ class OpenMCOperator(Operator):
         self.comm.barrier()
 
         # Update status
-        self.set_density(vec)
+        self.set_density(copy.deepcopy(vec))
 
         # Recreate model
         self.generate_materials_xml()

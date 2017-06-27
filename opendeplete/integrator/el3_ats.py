@@ -15,7 +15,7 @@ from mpi4py import MPI
 from .cram import CRAM48
 from .save_results import save_results
 
-def el3_ats(operator, tol, print_out=True):
+def el3_ats(operator, tol, error_mode, ats_mode, print_out=True):
     """ Performs integration of an operator using the EL3 algorithm.
 
     Parameters
@@ -28,8 +28,6 @@ def el3_ats(operator, tol, print_out=True):
         Whether or not to print out time.
     """
 
-    comm = MPI.COMM_WORLD
-
     # Save current directory
     dir_home = os.getcwd()
 
@@ -40,24 +38,19 @@ def el3_ats(operator, tol, print_out=True):
     # Generate initial conditions
     vec = copy.deepcopy(operator.initial_condition())
 
-    n_mats = len(vec)
-
     t = 0.0
 
     dt = 36000.0
     nps = int(250)
 
-    n_steps = 10
-
-    operator.settings.particles = nps
+    nps_second = nps / dt
 
     t_final = sum(operator.settings.dt_vec)
 
     neutrons_total = 0.0
-    rejected_steps = 0.0
-    kept_steps = 0.0
 
     step_ind = 0
+    iter_ind = 0
 
     while t < t_final * (1 - 1.0e-12):
 
@@ -65,111 +58,32 @@ def el3_ats(operator, tol, print_out=True):
         if t + dt > t_final:
             dt = t_final - t
 
-        # Avg/std storage
-        rates_avg = []
-        x_avg = []
-        relative_diff_M = []
-        relative_diff_S = []
-        eigvl_avg = 0.0
+        if ats_mode == 1:
+            success, x_avg, rates_avg, eigvl_avg, next_dt, next_nps, dnps = el3_mode1(operator, vec, t, dt, nps, print_out, tol, error_mode)
+            nps = next_nps
 
-        for i in range(n_steps):
-            # Compute next step
-            x_result, xhat_result, rates_array, eigvl = el3_inner(operator, vec, t, dt, print_out)
+        elif ats_mode == 2:
+            success, x_avg, rates_avg, eigvl_avg, next_dt, next_nps_second, dnps, dt = el3_mode2(operator, vec, t, dt, nps_second, print_out, tol, error_mode, iter_ind)
+            nps_second = next_nps_second
+            nps = nps_second * next_dt
 
-            relative_diff = compute_relative_diff(x_result, xhat_result)
+        neutrons_total += dnps
 
-            # Compress using Wellford's method
-            if i == 0:
-                rates_avg = copy.deepcopy(rates_array)
-                x_avg = copy.deepcopy(x_result)
-                relative_diff_M = copy.deepcopy(relative_diff)
-                relative_diff_S = [np.zeros(len(relative_diff[mat])) for mat in range(n_mats)]
-                eigvl_avg = eigvl
-            else:
-                rates_avg.rates += (rates_array.rates - rates_avg.rates) / (i + 1)
-                eigvl_avg += (eigvl - eigvl_avg) / (i + 1)
-                for mat in range(n_mats):
-                    x_avg[mat] += (x_result[mat] - x_avg[mat]) / (i + 1)
-                    old_M = copy.deepcopy(relative_diff_M[mat])
-                    relative_diff_M[mat] += (relative_diff[mat] - relative_diff_M[mat]) / (i + 1)
-                    relative_diff_S[mat] += (relative_diff[mat] - relative_diff_M[mat]) * (relative_diff[mat] - old_M)
-
-        # Compute standard deviation of mean
-        for mat in range(n_mats):
-            relative_diff_S[mat] = np.sqrt(relative_diff_S[mat] / ((n_steps - 1) * n_steps) )
-
-        # Compute / Broadcast RMSE of mean / standard deviation
-        sum_M, sum_S, nuc_count = compute_sum_of_squares(relative_diff_M, relative_diff_S, x_avg, 1.0e6)
-
-        success = False
-        next_dt = 0.0
-        next_nps = 0
-
-        if comm.rank == 0:
-            overall_sum_M = sum_M
-            overall_sum_S = sum_S
-            overall_nuc_count = nuc_count
-            for i in range(1, comm.size):
-                sum_M_i, sum_S_i, nuc_count_i = comm.recv(source=i, tag=i)
-                overall_sum_M += sum_M_i
-                overall_sum_S += sum_S_i
-                overall_nuc_count += nuc_count_i
-
-            mu = np.sqrt(overall_sum_M / overall_nuc_count)
-            std = np.sqrt(overall_sum_S / overall_nuc_count)
-
-            # Compute success or failure
-            p_within = 1/2 * (-special.erf((mu - tol) / (np.sqrt(2) * std)) + special.erf((mu + tol) / (np.sqrt(2) * std)))
-
-            c = 0.95
-            theta_h = 0.5
-            theta_n = 0.1
-            ratio = 4.0
-
-            if p_within > c:
-                success = True
-                kept_steps += 1
-            else:
-                rejected_steps += 1
-            neutrons_total += n_steps * 3 * nps * operator.settings.batches
-
-            # Compute new dt, new nps
-            m = np.abs(mu) + np.sqrt(2) * special.erfinv(c) * std
-            h_0 = dt * (theta_h * tol / m)**(1/3)
-            n_0 = nps * h_0 / dt * (std / (theta_n * tol))**2
-
-            next_dt = max(dt / ratio, min(dt * ratio, h_0))
-            next_nps = max(100, max(nps / ratio, min(nps * ratio, n_0)))
-            next_nps = int(next_nps)
-        else:
-            comm.send((sum_M, sum_S, nuc_count), dest=0, tag=comm.rank)
-        
-        # Broadcast failure state, new time step
-        success = comm.bcast(success, root=0)
-        next_dt = comm.bcast(next_dt, root=0)
-        next_nps = comm.bcast(next_nps, root=0)
-
-        if comm.rank == 0:
-            print("Success?", success)
-            print("dt?", next_dt)
-            print("nps?", next_nps)
-            print("mu?", mu)
-            print("std?", std)
-            print("total?", neutrons_total)
+        if MPI.COMM_WORLD.rank == 0:
+            print("Success: ", success, " dt = ", dt, " nps = ", operator.settings.particles, " current total = ", neutrons_total)
 
         if success:
             # Write to disk
             save_results(operator, [vec], [rates_avg], [eigvl_avg], [0], [t, t + dt], step_ind)
-
             t += dt
-            dt = next_dt
-            nps = next_nps
-            operator.settings.particles = next_nps
             step_ind += 1
             vec = copy.deepcopy(x_avg)
 
+        dt = next_dt
+        iter_ind +=1
+
     # Perform one last simulation
-    operator.settings.particles *= n_steps
+    operator.settings.particles = int(nps)
     x = [copy.deepcopy(vec)]
     seeds = []
     eigvls = []
@@ -185,6 +99,235 @@ def el3_ats(operator, tol, print_out=True):
 
     # Return to origin
     os.chdir(dir_home)
+
+def el3_compute_sum_rate(diff_M, diff_S, x_avg, rates_avg, nuc_to_ind):
+    """ Compute RMS of relative error of nuclides"""
+
+    comm = MPI.COMM_WORLD
+
+    diff_sum = 0.0
+    std_diff_sum = 0.0
+    total_sum = 0.0
+
+    # For all nodes, compute sum of diff_M weighted by rates
+    for nuc in rates_avg.nuc_to_ind:
+        nuc_rate_i = rates_avg.nuc_to_ind[nuc]
+        nuc_diff_i = nuc_to_ind[nuc]
+        for mat in rates_avg.mat_to_ind:
+            mat_i = rates_avg.mat_to_ind[mat]
+            diff_sum += diff_M[mat_i][nuc_diff_i] * np.sum(rates_avg[mat_i, nuc_rate_i, :])
+            std_diff_sum += diff_S[mat_i][nuc_diff_i] * np.sum(rates_avg[mat_i, nuc_rate_i, :])
+            total_sum += x_avg[mat_i][nuc_diff_i] * np.sum(rates_avg[mat_i, nuc_rate_i, :])
+
+    mu = 0.0
+    std = 0.0
+
+    if comm.rank == 0:
+        overall_sum_M = diff_sum
+        overall_sum_S = std_diff_sum
+        overall_sum_T = total_sum
+        for i in range(1, comm.size):
+            sum_M_i, sum_S_i, sum_T_i = comm.recv(source=i, tag=i)
+            overall_sum_M += sum_M_i
+            overall_sum_S += sum_S_i
+            overall_sum_T += sum_T_i
+
+        mu = overall_sum_M / overall_sum_T
+        std = overall_sum_S / overall_sum_T
+    else:
+        comm.send((diff_sum, std_diff_sum, total_sum), dest=0, tag=comm.rank)
+    
+    # Broadcast error
+    mu = comm.bcast(mu, root=0)
+    std = comm.bcast(std, root=0)
+
+    return mu, std
+
+def el3_compute_rmse_nuc(diff_M, diff_S, x_avg, minval=1.0e6):
+    """ Compute RMS of relative error of nuclides"""
+
+    comm = MPI.COMM_WORLD
+
+    # Compute / Broadcast RMSE of mean / standard deviation
+    sum_M, sum_S, nuc_count = compute_sum_of_squares(diff_M, diff_S, x_avg, 1.0e6)
+
+    mu = 0.0
+    std = 0.0
+
+    if comm.rank == 0:
+        overall_sum_M = sum_M
+        overall_sum_S = sum_S
+        overall_nuc_count = nuc_count
+        for i in range(1, comm.size):
+            sum_M_i, sum_S_i, nuc_count_i = comm.recv(source=i, tag=i)
+            overall_sum_M += sum_M_i
+            overall_sum_S += sum_S_i
+            overall_nuc_count += nuc_count_i
+
+        mu = np.sqrt(overall_sum_M / overall_nuc_count)
+        std = np.sqrt(overall_sum_S / overall_nuc_count)
+    else:
+        comm.send((sum_M, sum_S, nuc_count), dest=0, tag=comm.rank)
+    
+    # Broadcast error
+    mu = comm.bcast(mu, root=0)
+    std = comm.bcast(std, root=0)
+
+    return mu, std
+
+def el3_mode1(operator, vec, t, dt, nps, print_out, tol, error_mode, lock_nps=True):
+
+    n_mats = len(vec)
+    n_steps = 3
+
+    # Avg/std storage
+    rates_avg = []
+    x_avg = []
+    diff_M = []
+    diff_S = []
+    eigvl_avg = 0.0
+
+    if nps / n_steps < 100:
+        true_nps = 100
+    else:
+        true_nps = int(nps / n_steps)
+
+    operator.settings.particles = true_nps
+
+    for i in range(n_steps):
+        # Compute next step
+        x_result, xhat_result, rates_array, eigvl = el3_inner(operator, vec, t, dt, print_out)
+
+        if error_mode == "rmse_nuc":
+            diff = compute_relative_diff(x_result, xhat_result)
+        elif error_mode == "sum_rate":
+            diff = compute_diff(x_result, xhat_result)
+
+        # Compress using Wellford's method
+        if i == 0:
+            rates_avg = copy.deepcopy(rates_array)
+            x_avg = copy.deepcopy(x_result)
+            diff_M = copy.deepcopy(diff)
+            diff_S = [np.zeros(len(diff[mat])) for mat in range(n_mats)]
+            eigvl_avg = eigvl
+        else:
+            rates_avg.rates += (rates_array.rates - rates_avg.rates) / (i + 1)
+            eigvl_avg += (eigvl - eigvl_avg) / (i + 1)
+            for mat in range(n_mats):
+                x_avg[mat] += (x_result[mat] - x_avg[mat]) / (i + 1)
+                old_M = copy.deepcopy(diff_M[mat])
+                diff_M[mat] += (diff[mat] - diff_M[mat]) / (i + 1)
+                diff_S[mat] += (diff[mat] - diff_M[mat]) * (diff[mat] - old_M)
+
+    # Compute standard deviation of mean
+    for mat in range(n_mats):
+        diff_S[mat] = np.sqrt(diff_S[mat] / ((n_steps - 1) * n_steps) )
+
+    if error_mode == "rmse_nuc":
+        mu, std = el3_compute_rmse_nuc(diff_M, diff_S, x_avg, 1.0e6)
+    elif error_mode == "sum_rate":
+        mu, std = el3_compute_sum_rate(diff_M, diff_S, x_avg, rates_avg, operator.chain.nuclide_dict)
+
+    if MPI.COMM_WORLD.rank == 0:
+        print("mu = ", mu, " std = ", std)
+
+    # Compute new time step, success
+    p_within = 1/2 * (-special.erf((mu - tol) / (np.sqrt(2) * std)) + special.erf((mu + tol) / (np.sqrt(2) * std)))
+
+    c = 0.95
+    theta_h = 0.5
+    theta_n = 0.1
+    ratio = 4.0
+
+    success = (p_within > c)
+
+    # Compute new dt, new nps
+    m = np.abs(mu) + np.sqrt(2) * special.erfinv(c) * std
+    h_0 = dt * (theta_h * tol / m)**(1/3)
+    next_dt = max(dt / ratio, min(dt * ratio, h_0))
+
+    n_0 = true_nps * next_dt / dt * (std / (theta_n * tol))**2
+    if lock_nps:
+        next_nps = max(true_nps / ratio, min(true_nps * ratio, n_0))
+    else:
+        next_nps = n_0
+    next_nps = next_nps * n_steps
+
+    return success, x_avg, rates_avg, eigvl_avg, next_dt, next_nps, 3 * true_nps * operator.settings.batches * n_steps
+
+def el3_mode2(operator, vec, t, dt, nps_second, print_out, tol, error_mode, iter_ind):
+
+    n_mats = len(vec)
+    nps_total = 0
+
+    skip_step = 10
+
+    if MPI.COMM_WORLD.rank == 0:
+        print(vec[0])
+
+    if iter_ind % skip_step == 0:
+        # Acquire new NPS
+        success, x_avg, rates_avg, eigvl_avg, next_dt, next_nps, dnps = el3_mode1(operator, vec, t, dt, nps_second * dt, print_out, tol, error_mode, False)
+        nps_total += dnps
+        dt = next_dt
+        nps_second = next_nps / next_dt
+
+    if nps_second * dt < 100:
+        true_nps = 100
+    else:
+        true_nps = int(nps_second * dt)
+
+    if MPI.COMM_WORLD.rank == 0:
+        print(vec[0])
+
+    operator.settings.particles = true_nps
+
+    # Evaluate time step
+    x_result, xhat_result, rates_array, eigvl = el3_inner(operator, vec, t, dt, print_out)
+    nps_total += 3 * true_nps * operator.settings.batches
+
+    if error_mode == "rmse_nuc":
+        diff = compute_relative_diff(x_result, xhat_result)
+    elif error_mode == "sum_rate":
+        diff = compute_diff(x_result, xhat_result)
+
+    rates_avg = copy.deepcopy(rates_array)
+    x_avg = copy.deepcopy(x_result)
+    diff_M = copy.deepcopy(diff)
+    diff_S = [np.zeros(len(diff[mat])) for mat in range(n_mats)]
+    eigvl_avg = eigvl
+
+    # Compute new time step
+
+    if error_mode == "rmse_nuc":
+        mu, std = el3_compute_rmse_nuc(diff_M, diff_S, x_avg, 1.0e6)
+    elif error_mode == "sum_rate":
+        mu, std = el3_compute_sum_rate(diff_M, diff_S, x_avg, rates_avg, operator.chain.nuclide_dict)
+
+    if MPI.COMM_WORLD.rank == 0:
+        if iter_ind % skip_step == 0:
+            print("New nps/second = ", nps_second, " new dt = ", dt, " true nps = ", true_nps)
+        print("mu = ", mu, " std = ", std)
+
+    c = 0.95
+    theta_h = 0.5
+    theta_n = 0.1
+    ratio = 4.0
+
+    # Estimate std when not computing it
+    std = theta_n * tol
+
+    # Compute new time step, success
+    p_within = 1/2 * (-special.erf((mu - tol) / (np.sqrt(2) * std)) + special.erf((mu + tol) / (np.sqrt(2) * std)))
+
+    success = (p_within > c)
+
+    # Compute new dt, new nps
+    m = np.abs(mu) + np.sqrt(2) * special.erfinv(c) * std
+    h_0 = dt * (theta_h * tol / m)**(1/3)
+    next_dt = max(dt / ratio, min(dt * ratio, h_0))
+
+    return success, x_avg, rates_avg, eigvl_avg, next_dt, nps_second, nps_total, dt
 
 def compute_sum_of_squares(a, b, ref, cutoff):
     """ Computes the sum of squares of a list of np.arrays."""
@@ -221,6 +364,23 @@ def compute_relative_diff(a, b):
         x1[x1 == 0.0] = 1.0e-24
 
         result.append((x1 - x2) / x1)
+
+    return result
+
+def compute_diff(a, b):
+    """ Computes the difference between distribution a and b
+
+    """
+
+    n_mats = len(a)
+
+    result = []
+
+    for i in range(n_mats):
+        x1 = copy.deepcopy(a[i])
+        x2 = b[i]
+
+        result.append(x1 - x2)
 
     return result
 
