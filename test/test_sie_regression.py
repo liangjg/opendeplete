@@ -53,6 +53,36 @@ class TestSIERegression(unittest.TestCase):
         self.assertLess(np.absolute(y1[2] - s2[0]), tol)
         self.assertLess(np.absolute(y2[2] - s2[1]), tol)
 
+    def test_sie_RR(self):
+        """ Integral regression test of SIE reaction rate relaxation. """
+
+        settings = opendeplete.Settings()
+        settings.dt_vec = [0.75, 0.75]
+        settings.output_dir = self.results
+
+        op = dummy_geometry.DummyGeometry(settings)
+
+        # Perform simulation using the predictor algorithm
+        opendeplete.sie_RR(op, m=10, print_out=False)
+
+        # Load the files
+        res = results.read_results(settings.output_dir + "/results.h5")
+
+        _, y1 = utilities.evaluate_single_nuclide(res, "1", "1")
+        _, y2 = utilities.evaluate_single_nuclide(res, "1", "2")
+
+        # Mathematica solution
+        s1 = [1.781821165135111, 1.614583951728120]
+        s2 = [1.357632357003322, 4.108469553968062]
+
+        tol = 1.0e-13
+
+        self.assertLess(np.absolute(y1[1] - s1[0]), tol)
+        self.assertLess(np.absolute(y2[1] - s1[1]), tol)
+
+        self.assertLess(np.absolute(y1[2] - s2[0]), tol)
+        self.assertLess(np.absolute(y2[2] - s2[1]), tol)
+
     @classmethod
     def tearDownClass(cls):
         """ Clean up files"""
