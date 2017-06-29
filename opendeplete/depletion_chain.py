@@ -387,18 +387,24 @@ class DepletionChain(object):
             clean_xml_indentation(root_elem, spaces_per_level=2)
             tree.write(filename, encoding='utf-8')
 
-    def form_matrix(self, rates):
+    def form_matrix(self, rates, scale=1.0, compute_energy=False):
         """ Forms depletion matrix.
 
         Parameters
         ----------
         rates : numpy.ndarray
             2D array indexed by nuclide then by cell.
+        scale : float, optional
+            Parameter to scale reaction rates.
+        compute_energy : bool, optional
+            Whether or not to add an additional ODE to compute integral power.
 
         Returns
         -------
         scipy.sparse.csr_matrix
             Sparse matrix representing depletion.
+        compute_energy : bool, optional
+            Whether or not to add an energy deposition ODE at the end.
         """
 
         matrix = defaultdict(float)
@@ -429,10 +435,10 @@ class DepletionChain(object):
                 nuc_ind = self.nuc_to_react_ind[nuc.name]
                 nuc_rates = rates[nuc_ind, :]
 
-                for r_type, target, _, br in nuc.reactions:
+                for r_type, target, Q, br in nuc.reactions:
                     # Extract reaction index, and then final reaction rate
                     r_id = self.react_to_ind[r_type]
-                    path_rate = nuc_rates[r_id]
+                    path_rate = nuc_rates[r_id] * scale
 
                     # Loss term -- make sure we only count loss once for
                     # reactions with branching ratios
@@ -457,12 +463,21 @@ class DepletionChain(object):
                                 if yield_val != 0.0:
                                     k = self.nuclide_dict[product]
                                     matrix[k, i] += yield_val
+                            if compute_energy:
+                                # Production of heat, MeV
+                                matrix[self.n_nuclides, i] += path_rate * Q / 1.0e6
 
                 # Clear set of reactions
                 reactions.clear()
 
         # Use DOK matrix as intermediate representation, then convert to CSR and return
-        matrix_dok = sp.dok_matrix((self.n_nuclides, self.n_nuclides))
+
+        if compute_energy:
+            n = self.n_nuclides + 1
+        else:
+            n = self.n_nuclides
+
+        matrix_dok = sp.dok_matrix((n, n))
         matrix_dok.update(matrix)
         return matrix_dok.tocsr()
 

@@ -59,7 +59,7 @@ class DummyGeometry(Operator):
 
         return 0.0, reaction_rates, 0
 
-    def form_matrix(self, y, mat):
+    def form_matrix(self, y, mat, scale=1.0):
         """ Forms the f(y) matrix in y' = f(y)y.
 
         Nominally a depletion matrix, this is abstracted on the off chance
@@ -71,6 +71,8 @@ class DummyGeometry(Operator):
             An array representing y.
         mat : int
             Material id.
+        scale : float, optional
+            Scaling parameter for matrix.
 
         Returns
         -------
@@ -87,7 +89,7 @@ class DummyGeometry(Operator):
         a21 = -np.cos(y_2)
         a22 = np.sin(y_1)
 
-        mat = sp.csr_matrix(np.array([[a11, a12], [a21, a22]]))
+        mat = sp.csr_matrix(np.array([[a11, a12], [a21, a22]])) * scale
 
         return mat
 

@@ -19,6 +19,7 @@ import copy
 import os
 import time
 
+import numpy as np
 from mpi4py import MPI
 
 from .cram import CRAM48
@@ -70,7 +71,7 @@ def celi_m1(operator, m=5, print_out=True):
     # Return to origin
     os.chdir(dir_home)
 
-def celi_m1_inner(operator, m, vec, i, t, dt, print_out):
+def celi_m1_inner(operator, m, vec, iter_index, t, dt, print_out, renormalize_power=False):
     """ The inner loop of CE/LI M1.
 
     Parameters
@@ -81,7 +82,7 @@ def celi_m1_inner(operator, m, vec, i, t, dt, print_out):
         Number of substeps to perform
     vec : list of numpy.array
         Nuclide vector, beginning of time.
-    i : Int
+    iter_index : Int
         Current iteration number.
     t : Float
         Time at start of step.
@@ -89,6 +90,8 @@ def celi_m1_inner(operator, m, vec, i, t, dt, print_out):
         Time step.
     print_out : bool
         Whether or not to print out time.
+    renormalize_power : bool, optional
+        Whether or not to renormalize power for each substep.
 
     Returns
     -------
@@ -99,6 +102,10 @@ def celi_m1_inner(operator, m, vec, i, t, dt, print_out):
     ReactionRates
         Reaction rates from beginning of step.
     """
+
+    # Compute true energy deposition for time step
+    if renormalize_power == True:
+        edep_true = operator.settings.power * dt
 
     n_mats = len(vec)
 
@@ -114,12 +121,46 @@ def celi_m1_inner(operator, m, vec, i, t, dt, print_out):
     seeds.append(seed)
     rates_array.append(copy.deepcopy(rates))
 
+    if renormalize_power:
+        # Compute power deposition for all nuclides
+        energy_array = np.zeros(n_mats)
+
+        for mat in range(n_mats):
+            # Form matrix
+            f = operator.form_matrix(rates_array[0], mat, compute_energy=True)
+
+            n_nuc = len(x[0][mat])
+            x_i = np.zeros(n_nuc + 1)
+            x_i[:-1] = copy.deepcopy(x[0][mat])
+
+            x_new = CRAM48(f, x_i, dt)
+
+            energy_array[mat] = x_new[-1]
+
+        # Broadcast power
+        total_energy = 0.0
+        if MPI.COMM_WORLD.rank == 0:
+            total_energy += np.sum(energy_array)
+            for i in range(1, MPI.COMM_WORLD.size):
+                total_energy += MPI.COMM_WORLD.recv(source=i, tag=i)
+        else:
+            MPI.COMM_WORLD.send(np.sum(energy_array), dest=0, tag=MPI.COMM_WORLD.rank)
+
+        total_energy = MPI.COMM_WORLD.bcast(total_energy, root=0)
+
+        scale = edep_true / total_energy
+
+        if MPI.COMM_WORLD.rank == 0:
+            print("Scaling parameter = ", scale)
+    else: 
+        scale = 1.0
+
     x_result = []
 
     t_start = time.time()
     for mat in range(n_mats):
         # Form matrix
-        f = operator.form_matrix(rates_array[0], mat)
+        f = operator.form_matrix(rates_array[0], mat, scale=scale)
 
         x_new = CRAM48(f, x[0][mat], dt)
 
@@ -138,25 +179,61 @@ def celi_m1_inner(operator, m, vec, i, t, dt, print_out):
     seeds.append(seed)
     rates_array.append(copy.deepcopy(rates))
 
-    x_result = []
+    x_result = copy.deepcopy(x[0])
+    x_result_new = copy.deepcopy(x[0])
 
     t_start = time.time()
-    for mat in range(n_mats):
-        # Form matrices
-        f1 = operator.form_matrix(rates_array[0], mat)
-        f2 = operator.form_matrix(rates_array[1], mat)
+    for j in range(m):
+        # Polynomial weights
+        a = j / m
+        b = (j + 1) / m
+        c1 = 1/2 * (a - b) * (-2 + a + b) * dt
+        c2 = 1/2 * (-a**2 + b**2) * dt
 
-        # Perform substepping
-        x_new = copy.deepcopy(x[0][mat])
-        for j in range(m):
-            a = j / m
-            b = (j + 1) / m
-            c1 = 1/2 * (a - b) * (-2 + a + b) * dt
-            c2 = 1/2 * (-a**2 + b**2) * dt
+        # First, compute scaling parameter
+        if renormalize_power:
+            # Compute power deposition for all nuclides
+            energy_array = np.zeros(n_mats)
 
-            x_new = CRAM48(f1*c1 + f2*c2, x_new, 1.0)
+            for mat in range(n_mats):
+                # Form matrix
+                f1 = operator.form_matrix(rates_array[0], mat, compute_energy=True)
+                f2 = operator.form_matrix(rates_array[1], mat, compute_energy=True)
 
-        x_result.append(x_new)
+                n_nuc = len(x_result[mat])
+                x_i = np.zeros(n_nuc + 1)
+                x_i[:-1] = copy.deepcopy(x_result[mat])
+
+                x_new = CRAM48(f1*c1 + f2*c2, x_i, 1.0)
+
+                energy_array[mat] = x_new[-1]
+
+            # Broadcast power
+            total_energy = 0.0
+            if MPI.COMM_WORLD.rank == 0:
+                total_energy += np.sum(energy_array)
+                for i in range(1, MPI.COMM_WORLD.size):
+                    total_energy += MPI.COMM_WORLD.recv(source=i, tag=i)
+            else:
+                MPI.COMM_WORLD.send(np.sum(energy_array), dest=0, tag=MPI.COMM_WORLD.rank)
+
+            total_energy = MPI.COMM_WORLD.bcast(total_energy, root=0)
+
+            scale = edep_true / total_energy / m
+
+            if MPI.COMM_WORLD.rank == 0:
+                print("Scaling parameter = ", scale)
+        else: 
+            scale = 1.0
+
+        for mat in range(n_mats):
+            # Form matrix
+            f1 = operator.form_matrix(rates_array[0], mat, scale=scale)
+            f2 = operator.form_matrix(rates_array[1], mat, scale=scale)
+
+            x_result_new[mat] = CRAM48(f1*c1 + f2*c2, x_result[mat], 1.0)
+
+        x_result = copy.deepcopy(x_result_new)
 
     t_end = time.time()
     if MPI.COMM_WORLD.rank == 0:
@@ -164,6 +241,6 @@ def celi_m1_inner(operator, m, vec, i, t, dt, print_out):
             print("Time to matexp: ", t_end - t_start)
 
     # Create results, write to disk
-    save_results(operator, x, rates_array, eigvls, seeds, [t, t + dt], i)
+    save_results(operator, x, rates_array, eigvls, seeds, [t, t + dt], iter_index)
 
     return x_result, t + dt, rates_array[0]

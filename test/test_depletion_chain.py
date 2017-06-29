@@ -152,7 +152,7 @@ class TestDepletionChain(unittest.TestCase):
         react["10000", "B", "(n,gamma)"] = 3.0
         react["10000", "C", "(n,gamma)"] = 4.0
 
-        mat = dep.form_matrix(react[0, :, :])
+        mat1 = dep.form_matrix(react[0, :, :], scale=1.0, compute_energy=False)
         # Loss A, decay, (n, gamma)
         mat00 = -np.log(2) / 2.36520E+04 - 2
         # A -> B, decay, 0.6 branching ratio
@@ -174,15 +174,67 @@ class TestDepletionChain(unittest.TestCase):
         # Loss C, fission, (n, gamma)
         mat22 = -1.0 - 4.0
 
-        self.assertEqual(mat[0, 0], mat00)
-        self.assertEqual(mat[1, 0], mat10)
-        self.assertEqual(mat[2, 0], mat20)
-        self.assertEqual(mat[0, 1], mat01)
-        self.assertEqual(mat[1, 1], mat11)
-        self.assertEqual(mat[2, 1], mat21)
-        self.assertEqual(mat[0, 2], mat02)
-        self.assertEqual(mat[1, 2], mat12)
-        self.assertEqual(mat[2, 2], mat22)
+        self.assertEqual(mat1[0, 0], mat00)
+        self.assertEqual(mat1[1, 0], mat10)
+        self.assertEqual(mat1[2, 0], mat20)
+        self.assertEqual(mat1[0, 1], mat01)
+        self.assertEqual(mat1[1, 1], mat11)
+        self.assertEqual(mat1[2, 1], mat21)
+        self.assertEqual(mat1[0, 2], mat02)
+        self.assertEqual(mat1[1, 2], mat12)
+        self.assertEqual(mat1[2, 2], mat22)
+
+        scale = 0.5
+        mat2 = dep.form_matrix(react[0, :, :], scale=scale, compute_energy=True)
+
+        # Loss A, decay, (n, gamma)
+        mat00 = -np.log(2) / 2.36520E+04 - 2 * scale
+        # A -> B, decay, 0.6 branching ratio
+        mat10 = np.log(2) / 2.36520E+04 * 0.6
+        # A -> C, decay, 0.4 branching ratio + (n,gamma)
+        mat20 = np.log(2) / 2.36520E+04 * 0.4 + 2 * scale
+
+        # B -> A, decay, 1.0 branching ratio
+        mat01 = np.log(2)/3.29040E+04
+        # Loss B, decay, (n, gamma)
+        mat11 = -np.log(2)/3.29040E+04 - 3 * scale
+        # B -> C, (n, gamma)
+        mat21 = 3 * scale
+
+        # C -> A fission, (n, gamma)
+        mat02 = 0.0292737 * 1.0 * scale + 4.0 * 0.7 * scale
+        # C -> B fission, (n, gamma)
+        mat12 = 0.002566345 * 1.0 * scale + 4.0 * 0.3 * scale
+        # Loss C, fission, (n, gamma)
+        mat22 = (-1.0 - 4.0) * scale
+
+        # Production from heat (always zero)
+        mat03 = 0.0
+        mat13 = 0.0
+        mat23 = 0.0
+        mat33 = 0.0
+
+        # Production of heat (C fission)
+        mat30 = 0.0
+        mat31 = 0.0
+        mat32 = 200.0 * 1.0 * scale
+
+        self.assertEqual(mat2[0, 0], mat00)
+        self.assertEqual(mat2[1, 0], mat10)
+        self.assertEqual(mat2[2, 0], mat20)
+        self.assertEqual(mat2[3, 0], mat30)
+        self.assertEqual(mat2[0, 1], mat01)
+        self.assertEqual(mat2[1, 1], mat11)
+        self.assertEqual(mat2[2, 1], mat21)
+        self.assertEqual(mat2[3, 1], mat31)
+        self.assertEqual(mat2[0, 2], mat02)
+        self.assertEqual(mat2[1, 2], mat12)
+        self.assertEqual(mat2[2, 2], mat22)
+        self.assertEqual(mat2[3, 2], mat32)
+        self.assertEqual(mat2[0, 3], mat03)
+        self.assertEqual(mat2[1, 3], mat13)
+        self.assertEqual(mat2[2, 3], mat23)
+        self.assertEqual(mat2[3, 3], mat33)
 
     def test_nuc_by_ind(self):
         """ Test nuc_by_ind converter function. """

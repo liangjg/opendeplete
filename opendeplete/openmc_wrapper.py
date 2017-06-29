@@ -534,7 +534,7 @@ class OpenMCOperator(Operator):
 
         return k, self.reaction_rates, self.seed
 
-    def form_matrix(self, y, mat):
+    def form_matrix(self, y, mat, scale=1.0, compute_energy=False):
         """ Forms the depletion matrix.
 
         Parameters
@@ -543,6 +543,10 @@ class OpenMCOperator(Operator):
             An array representing reaction rates for this cell.
         mat : int
             Material id.
+        scale : float, optional
+            Scaling of reaction rates.
+        compute_energy : bool, optional
+            Whether or not to add an energy deposition ODE at the end.
 
         Returns
         -------
@@ -550,7 +554,7 @@ class OpenMCOperator(Operator):
             Sparse matrix representing the depletion matrix.
         """
 
-        return copy.deepcopy(self.chain.form_matrix(y[mat, :, :]))
+        return copy.deepcopy(self.chain.form_matrix(y[mat, :, :], scale, compute_energy))
 
     def initial_condition(self):
         """ Performs final setup and returns initial condition.
