@@ -34,6 +34,7 @@ suite_normal = [
     "test.test_nuclide",
     "test.test_predictor_regression",
     "test.test_reaction_rates",
+    "test.test_sie_regression",
     "test.test_utilities"
     ]
 
