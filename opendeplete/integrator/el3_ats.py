@@ -178,7 +178,7 @@ def el3_compute_rmse_nuc(diff_M, diff_S, x_avg, minval=1.0e6):
 def el3_mode1(operator, vec, t, dt, nps, print_out, tol, error_mode, lock_nps=True):
 
     n_mats = len(vec)
-    n_steps = 3
+    n_steps = 10
 
     # Avg/std storage
     rates_avg = []
