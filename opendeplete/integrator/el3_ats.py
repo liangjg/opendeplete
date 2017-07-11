@@ -41,7 +41,7 @@ def el3_ats(operator, tol, error_mode, ats_mode, print_out=True):
     t = 0.0
 
     dt = 36000.0
-    nps = int(250)
+    nps = int(1000)
 
     nps_second = nps / dt
 
@@ -115,7 +115,7 @@ def el3_compute_sum_rate(diff_M, diff_S, x_avg, rates_avg, nuc_to_ind):
         nuc_diff_i = nuc_to_ind[nuc]
         for mat in rates_avg.mat_to_ind:
             mat_i = rates_avg.mat_to_ind[mat]
-            diff_sum += diff_M[mat_i][nuc_diff_i] * np.sum(rates_avg[mat_i, nuc_rate_i, :])
+            diff_sum += np.abs(diff_M[mat_i][nuc_diff_i] * np.sum(rates_avg[mat_i, nuc_rate_i, :]))
             std_diff_sum += diff_S[mat_i][nuc_diff_i] * np.sum(rates_avg[mat_i, nuc_rate_i, :])
             total_sum += x_avg[mat_i][nuc_diff_i] * np.sum(rates_avg[mat_i, nuc_rate_i, :])
 
@@ -187,8 +187,8 @@ def el3_mode1(operator, vec, t, dt, nps, print_out, tol, error_mode, lock_nps=Tr
     diff_S = []
     eigvl_avg = 0.0
 
-    if nps / n_steps < 100:
-        true_nps = 100
+    if nps / n_steps < 1000:
+        true_nps = 1000
     else:
         true_nps = int(nps / n_steps)
 
@@ -272,8 +272,8 @@ def el3_mode2(operator, vec, t, dt, nps_second, print_out, tol, error_mode, iter
         dt = next_dt
         nps_second = next_nps / next_dt
 
-    if nps_second * dt < 100:
-        true_nps = 100
+    if nps_second * dt < 1000:
+        true_nps = 1000
     else:
         true_nps = int(nps_second * dt)
 
