@@ -63,7 +63,7 @@ def el3_ats(operator, tol, error_mode, ats_mode, print_out=True):
             nps = next_nps
 
         elif ats_mode == 2:
-            success, x_avg, rates_avg, eigvl_avg, next_dt, next_nps_second, dnps, dt = el3_mode2(operator, vec, t, dt, nps_second, print_out, tol, error_mode, iter_ind)
+            success, x_avg, rates_avg, eigvl_avg, next_dt, next_nps_second, dnps, dt = el3_mode2(operator, vec, t, dt, nps_second, print_out, tol, error_mode, iter_ind, t_final)
             nps_second = next_nps_second
             nps = nps_second * next_dt
 
@@ -255,7 +255,7 @@ def el3_mode1(operator, vec, t, dt, nps, print_out, tol, error_mode, lock_nps=Tr
 
     return success, x_avg, rates_avg, eigvl_avg, next_dt, next_nps, 3 * true_nps * operator.settings.batches * n_steps
 
-def el3_mode2(operator, vec, t, dt, nps_second, print_out, tol, error_mode, iter_ind):
+def el3_mode2(operator, vec, t, dt, nps_second, print_out, tol, error_mode, iter_ind, t_final):
 
     n_mats = len(vec)
     nps_total = 0
@@ -269,6 +269,8 @@ def el3_mode2(operator, vec, t, dt, nps_second, print_out, tol, error_mode, iter
         # Acquire new NPS
         success, x_avg, rates_avg, eigvl_avg, next_dt, next_nps, dnps = el3_mode1(operator, vec, t, dt, nps_second * dt, print_out, tol, error_mode, False)
         nps_total += dnps
+        if next_dt + t > t_final:
+            next_dt = t_final - t
         dt = next_dt
         nps_second = next_nps / next_dt
 
