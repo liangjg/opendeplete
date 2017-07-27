@@ -77,9 +77,9 @@ class ResultsArray(object):
         # Reconstruct dictionaries
         rate_array.volume = OrderedDict()
         rate_array.mat_to_ind = OrderedDict()
-        rate_array.nuc_to_ind = OrderedDict()
-        rate_array.rxn_nuc_to_ind = OrderedDict()
-        rate_array.rxn_to_ind = OrderedDict()
+        rate_array.nuc_to_ind_nuc = OrderedDict()
+        rate_array.nuc_to_ind_rate = OrderedDict()
+        rate_array.react_to_ind = OrderedDict()
 
         for mat in handle["/cells"]:
             mat_handle = handle["/cells/" + mat]
@@ -92,14 +92,14 @@ class ResultsArray(object):
         for nuc in handle["/nuclides"]:
             nuc_handle = handle["/nuclides/" + nuc]
             ind_atom = nuc_handle.attrs["atom number index"]
-            rate_array.nuc_to_ind[nuc] = ind_atom
+            rate_array.nuc_to_ind_nuc[nuc] = ind_atom
 
             if "reaction rate index" in nuc_handle.attrs:
-                rate_array.rxn_nuc_to_ind[nuc] = nuc_handle.attrs["reaction rate index"]
+                rate_array.nuc_to_ind_rate[nuc] = nuc_handle.attrs["reaction rate index"]
 
         for rxn in handle["/reactions"]:
             rxn_handle = handle["/reactions/" + rxn]
-            rate_array.rxn_to_ind[rxn] = rxn_handle.attrs["index"]
+            rate_array.react_to_ind[rxn] = rxn_handle.attrs["index"]
 
         return rate_array
 
