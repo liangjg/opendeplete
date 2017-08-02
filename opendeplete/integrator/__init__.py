@@ -12,6 +12,7 @@ from .cf4 import *
 from .cram import *
 from .el3 import *
 from .el3_ats import *
+from .el3_stab import *
 from .epc_rk4 import *
 from .leqi_m1 import *
 from .leqi_cfq4 import *
