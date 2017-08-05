@@ -179,7 +179,7 @@ def leqi_cfq4_imp(operator, print_out=True):
     x = [copy.deepcopy(vec)]
     seeds = [0]
     eigvls = [eigvl_bos]
-    rates_array = [copy.deepcopy(rates_bar)]
+    rates_array = [copy.deepcopy(rates_bos)]
 
     # Create results, write to disk
     save_results(operator, x, rates_array, eigvls, seeds, [t, t],
