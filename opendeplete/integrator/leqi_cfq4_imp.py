@@ -64,7 +64,7 @@ def leqi_cfq4_imp(operator, print_out=True):
 
     # Compute initial rates
     operator.settings.particles *= 10
-    eigvl_last, rates_last, seed = operator.eval(x)
+    eigvl_last, rates_last, seed = operator.eval(vec)
     operator.settings.particles = int(operator.settings.particles / 10)
 
     # Perform single step of CE/LI CFQ4 Implicit
