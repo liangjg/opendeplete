@@ -70,16 +70,9 @@ def celi_cfq4_imp(operator, print_out=True):
 
     # Perform one last simulation
     x = [copy.deepcopy(vec)]
-    seeds = []
-    eigvls = []
-    rates_array = []
-    operator.settings.particles *= m
-    eigvl, rates, seed = operator.eval(x[0])
-    operator.settings.particles = int(operator.settings.particles / m)
-
-    eigvls.append(eigvl)
-    seeds.append(seed)
-    rates_array.append(rates)
+    seeds = [0]
+    eigvls = [eigvl_bos]
+    rates_array = [copy.deepcopy(rates_bos)]
 
     # Create results, write to disk
     save_results(operator, x, rates_array, eigvls, seeds, [t, t],

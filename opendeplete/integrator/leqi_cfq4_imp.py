@@ -166,6 +166,8 @@ def leqi_cfq4_imp(operator, print_out=True):
         seeds.append(0)
         rates_array.append(copy.deepcopy(rates_bar))
 
+        save_results(operator, x, rates_array, eigvls, seeds, [t, t + dt], i+1)
+
         rates_last = copy.deepcopy(rates_bos)
         rates_bos = copy.deepcopy(rates_bar)
         eigvl_bos = eigvl_bar
