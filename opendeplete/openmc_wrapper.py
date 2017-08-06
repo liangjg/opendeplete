@@ -532,7 +532,7 @@ class OpenMCOperator(Operator):
                 print("Time to openmc: ", time_openmc - time_start)
                 print("Time to unpack: ", time_unpack - time_openmc)
 
-        return k, self.reaction_rates, self.seed
+        return k, copy.deepcopy(self.reaction_rates), self.seed
 
     def form_matrix(self, y, mat, scale=1.0, compute_energy=False):
         """ Forms the depletion matrix.

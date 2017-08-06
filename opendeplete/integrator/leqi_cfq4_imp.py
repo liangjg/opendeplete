@@ -64,7 +64,8 @@ def leqi_cfq4_imp(operator, print_out=True):
 
     # Compute initial rates
     operator.settings.particles *= 10
-    eigvl_last, rates_last, seed = operator.eval(vec)
+    eigvl_last, rates, seed = operator.eval(vec)
+    rates_last = copy.deepcopy(rates)
     operator.settings.particles = int(operator.settings.particles / 10)
 
     # Perform single step of CE/LI CFQ4 Implicit
@@ -77,6 +78,7 @@ def leqi_cfq4_imp(operator, print_out=True):
     for i, dt in enumerate(operator.settings.dt_vec[1::]):
         # Create vectors
         x = [copy.deepcopy(vec)]
+
         seeds = [0]
         eigvls = [eigvl_bos]
         rates_array = [copy.deepcopy(rates_bos)]

@@ -3,6 +3,7 @@
 This module implements the OpenDeplete -> OpenMC linkage.
 """
 
+import copy
 import numpy as np
 import scipy.sparse as sp
 
@@ -25,6 +26,7 @@ class DummyGeometry(Operator):
 
     def __init__(self, settings):
         Operator.__init__(self, settings)
+        reaction_rates = None
 
     def eval(self, vec, print_out=False):
         """ Evaluates F(y)
@@ -48,16 +50,18 @@ class DummyGeometry(Operator):
 
         cell_to_ind = {"1" : 0}
         nuc_to_ind = {"1" : 0, "2" : 1}
-        react_to_ind = {"1" : 0}
+        react_to_ind = {"1" : 0, "2" : 1}
 
-        reaction_rates = ReactionRates(cell_to_ind, nuc_to_ind, react_to_ind)
+        self.reaction_rates = ReactionRates(cell_to_ind, nuc_to_ind, react_to_ind)
 
-        reaction_rates[0, 0, 0] = vec[0][0]
-        reaction_rates[0, 1, 0] = vec[0][1]
+        self.reaction_rates[0, 0, 0] = np.sin(vec[0][1])
+        self.reaction_rates[0, 1, 0] = np.cos(vec[0][0])
+        self.reaction_rates[0, 0, 1] = -np.cos(vec[0][1])
+        self.reaction_rates[0, 1, 1] = np.sin(vec[0][0])
 
         # Create a fake rates object
 
-        return 0.0, reaction_rates, 0
+        return 0.0, self.reaction_rates, 0
 
     def form_matrix(self, y, mat, scale=1.0):
         """ Forms the f(y) matrix in y' = f(y)y.
@@ -79,15 +83,10 @@ class DummyGeometry(Operator):
         scipy.sparse.csr_matrix
             Sparse matrix representing f(y).
         """
-
-        y_1 = y[mat, 0, 0]
-        y_2 = y[mat, 1, 0]
-
-        mat = np.zeros((2, 2))
-        a11 = np.sin(y_2)
-        a12 = np.cos(y_1)
-        a21 = -np.cos(y_2)
-        a22 = np.sin(y_1)
+        a11 = y[mat, 0, 0]
+        a12 = y[mat, 1, 0]
+        a21 = y[mat, 0, 1]
+        a22 = y[mat, 1, 1]
 
         mat = sp.csr_matrix(np.array([[a11, a12], [a21, a22]])) * scale
 
@@ -128,17 +127,17 @@ class DummyGeometry(Operator):
         return {"1": 0}
 
 
-    @property
-    def reaction_rates(self):
-        """
-        reaction_rates : ReactionRates
-            Reaction rates from the last operator step.
-        """
-        cell_to_ind = {"1" : 0}
-        nuc_to_ind = {"1" : 0, "2" : 1}
-        react_to_ind = {"1" : 0}
+    # @property
+    # def reaction_rates(self):
+    #     """
+    #     reaction_rates : ReactionRates
+    #         Reaction rates from the last operator step.
+    #     """
+    #     cell_to_ind = {"1" : 0}
+    #     nuc_to_ind = {"1" : 0, "2" : 1}
+    #     react_to_ind = {"1" : 0, "2" : 1}
 
-        return ReactionRates(cell_to_ind, nuc_to_ind, react_to_ind)
+    #     return ReactionRates(cell_to_ind, nuc_to_ind, react_to_ind)
 
     def initial_condition(self):
         """ Returns initial vector.
